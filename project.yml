@@ -1,0 +1,54 @@
+name: MBDocumentScanner
+options:
+  bundleIdPrefix: com.marginallybetter
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+targets:
+  MBDocumentScanner:
+    type: application
+    platform: iOS
+    sources:
+      - path: MBDocumentScanner
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.marginallybetter.docscanner
+        PRODUCT_NAME: MBDocumentScanner
+        PRODUCT_MODULE_NAME: MBDocumentScanner
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: MB Document Scanner
+        INFOPLIST_KEY_NSCameraUsageDescription: MB Document Scanner uses the camera only to scan documents on this device.
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIRequiresFullScreen: NO
+        SUPPORTS_MACCATALYST: NO
+        ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+  MBDocumentScannerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: MBDocumentScannerTests
+    dependencies:
+      - target: MBDocumentScanner
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.marginallybetter.docscanner.tests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  MBDocumentScanner:
+    build:
+      targets:
+        MBDocumentScanner: all
+        MBDocumentScannerTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - MBDocumentScannerTests
