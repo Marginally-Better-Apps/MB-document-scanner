@@ -25,11 +25,14 @@ struct DocumentContentsView: View {
     var body: some View {
         Group {
             if session.isEmpty {
-                ContentUnavailableView(
-                    "No Pages",
-                    systemImage: "doc.viewfinder",
-                    description: Text("Add pages to this scan or delete it from the options menu.")
-                )
+                ContentUnavailableView {
+                    Label("No Pages", systemImage: "doc.viewfinder")
+                } description: {
+                    Text("Scan or import pages to add them to this document.")
+                } actions: {
+                    Button("Scan Pages", action: beginScanning)
+                        .buttonStyle(.borderedProminent)
+                }
             } else {
                 pagesGrid
             }
@@ -37,6 +40,11 @@ struct DocumentContentsView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle(session.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleMenu {
+            Button(action: beginRename) {
+                Label("Rename", systemImage: "pencil")
+            }
+        }
         .toolbar { toolbarContent }
         .safeAreaInset(edge: .bottom) { actionBar }
         .fullScreenCover(isPresented: $isScannerPresented) {
@@ -80,16 +88,19 @@ struct DocumentContentsView: View {
         } message: {
             Text(alertMessage ?? "Please try again.")
         }
-        .alert(
+        .confirmationDialog(
             "Delete Page \(pendingPageDeletion?.pageNumber ?? 1)?",
             isPresented: Binding(
                 get: { pendingPageDeletion != nil },
                 set: { if !$0 { pendingPageDeletion = nil } }
-            )
+            ),
+            titleVisibility: .visible
         ) {
             Button("Delete Page", role: .destructive) {
                 if let pendingPageDeletion {
-                    session.remove(pageID: pendingPageDeletion.pageID)
+                    withAnimation(.snappy) {
+                        session.remove(pageID: pendingPageDeletion.pageID)
+                    }
                 }
                 pendingPageDeletion = nil
             }
@@ -116,94 +127,148 @@ struct DocumentContentsView: View {
 
     private var pagesGrid: some View {
         ScrollView {
-            LazyVGrid(columns: gridColumns, spacing: 20) {
-                ForEach(Array(session.pages.enumerated()), id: \.element.id) { index, page in
-                    ZStack(alignment: .topLeading) {
-                        NavigationLink {
-                            PageDetailView(session: session, pageID: page.id)
-                        } label: {
-                            PageCard(page: page, pageNumber: index + 1)
-                        }
-                        .buttonStyle(.plain)
+            VStack(alignment: .leading, spacing: 16) {
+                summaryHeader
 
-                        Button {
-                            pendingPageDeletion = PendingPageDeletion(
-                                pageID: page.id,
-                                pageNumber: index + 1
-                            )
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 21, weight: .semibold))
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(.white, .red)
-                                .frame(width: 44, height: 44)
-                                .contentShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Delete Page \(index + 1)")
-                        .offset(x: -22, y: -22)
+                LazyVGrid(columns: gridColumns, spacing: 20) {
+                    ForEach(Array(session.pages.enumerated()), id: \.element.id) { index, page in
+                        pageCell(page, index: index)
                     }
-                    .opacity(draggedPageID == page.id ? 0.65 : 1)
-                    .onDrag {
-                        draggedPageID = page.id
-                        let feedback = UIImpactFeedbackGenerator(style: .light)
-                        feedback.prepare()
-                        feedback.impactOccurred()
-                        return NSItemProvider(object: page.id.uuidString as NSString)
-                    }
-                    .onDrop(
-                        of: [UTType.plainText],
-                        delegate: PageReorderDropDelegate(
-                            targetPageID: page.id,
-                            session: session,
-                            draggedPageID: $draggedPageID
-                        )
-                    )
                 }
+
+                Label("Touch and hold a page to reorder, rotate, or delete it.", systemImage: "hand.tap")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 96)
+            .padding(.vertical, 12)
+        }
+        // Catches drops that land between cards so a finished drag never leaves stale state.
+        .onDrop(of: [UTType.plainText], isTargeted: nil) { _ in
+            draggedPageID = nil
+            return false
+        }
+    }
+
+    private var summaryHeader: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("\(pageCountText(session.pages.count)) · Edited \(session.modifiedAt.formatted(.relative(presentation: .named)))")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            if session.pagesNeedingReview > 0 {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(session.pagesNeedingReview) \(session.pagesNeedingReview == 1 ? "page needs" : "pages need") review")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Open a marked page to see what to fix, then rescan, crop, or rotate it.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+        }
+    }
+
+    private func pageCell(_ page: ScannedPage, index: Int) -> some View {
+        NavigationLink {
+            PageDetailView(session: session, initialPageID: page.id)
+        } label: {
+            PageCard(page: page, pageNumber: index + 1)
+        }
+        .buttonStyle(.plain)
+        .contextMenu { pageActions(for: page, index: index) }
+        .onDrag {
+            draggedPageID = page.id
+            Haptics.impact()
+            return NSItemProvider(object: page.id.uuidString as NSString)
+        }
+        .onDrop(
+            of: [UTType.plainText],
+            delegate: PageReorderDropDelegate(
+                targetPageID: page.id,
+                session: session,
+                draggedPageID: $draggedPageID
+            )
+        )
+    }
+
+    @ViewBuilder
+    private func pageActions(for page: ScannedPage, index: Int) -> some View {
+        Button {
+            session.rotate(pageID: page.id)
+        } label: {
+            Label("Rotate", systemImage: "rotate.right")
+        }
+
+        if index > 0 {
+            Button {
+                movePage(page.id, toIndex: index - 1)
+            } label: {
+                Label("Move Earlier", systemImage: "arrow.left")
+            }
+        }
+
+        if index < session.pages.count - 1 {
+            Button {
+                movePage(page.id, toIndex: index + 1)
+            } label: {
+                Label("Move Later", systemImage: "arrow.right")
+            }
+        }
+
+        Divider()
+
+        Button(role: .destructive) {
+            pendingPageDeletion = PendingPageDeletion(pageID: page.id, pageNumber: index + 1)
+        } label: {
+            Label("Delete Page", systemImage: "trash")
         }
     }
 
     private var actionBar: some View {
-        HStack(spacing: 12) {
-            AddPagesMenu(
-                onScan: beginScanning,
-                onImportPDF: { isPDFImporterPresented = true },
-                onPaste: pastePages
-            ) {
-                Label("Add Pages", systemImage: "doc.viewfinder")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
+        BottomActionBar {
+            HStack(spacing: 12) {
+                Button(action: beginScanning) {
+                    Label("Scan", systemImage: "doc.viewfinder")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Scan More Pages")
 
-            Button {
-                isExportPresented = true
-            } label: {
-                Label("Export", systemImage: "square.and.arrow.up")
-                    .frame(maxWidth: .infinity)
+                ImportMenu(
+                    onImportPDF: { isPDFImporterPresented = true },
+                    onPaste: pastePages
+                )
+                .buttonStyle(.bordered)
+
+                Button {
+                    isExportPresented = true
+                } label: {
+                    Label("Export", systemImage: "square.and.arrow.up")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(session.isEmpty)
             }
-            .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(session.isEmpty)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .background(.bar)
     }
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
-                Button {
-                    draftTitle = session.title
-                    isRenamePresented = true
-                } label: {
+                Button(action: beginRename) {
                     Label("Rename", systemImage: "pencil")
                 }
 
@@ -226,6 +291,19 @@ struct DocumentContentsView: View {
             }
             .accessibilityLabel("Scan options")
         }
+    }
+
+    private func beginRename() {
+        draftTitle = session.title
+        isRenamePresented = true
+    }
+
+    private func movePage(_ pageID: UUID, toIndex targetIndex: Int) {
+        guard session.pages.indices.contains(targetIndex) else { return }
+        withAnimation(.snappy) {
+            _ = session.movePage(pageID, toPositionOf: session.pages[targetIndex].id)
+        }
+        Haptics.selection()
     }
 
     private func beginScanning() {
@@ -264,9 +342,7 @@ private struct PageReorderDropDelegate: DropDelegate {
         }
 
         if didMove {
-            let feedback = UISelectionFeedbackGenerator()
-            feedback.prepare()
-            feedback.selectionChanged()
+            Haptics.selection()
         }
     }
 
@@ -276,9 +352,7 @@ private struct PageReorderDropDelegate: DropDelegate {
 
     func performDrop(info: DropInfo) -> Bool {
         draggedPageID = nil
-        let feedback = UIImpactFeedbackGenerator(style: .medium)
-        feedback.prepare()
-        feedback.impactOccurred()
+        Haptics.impact(.medium)
         return true
     }
 }

@@ -2,11 +2,11 @@ import Combine
 import SwiftUI
 import UIKit
 
-struct AddPagesMenu<MenuLabel: View>: View {
-    let onScan: () -> Void
+/// The secondary ways to add pages. Scanning stays a separate one-tap button
+/// so the most common action never hides behind a menu.
+struct ImportMenu: View {
     let onImportPDF: () -> Void
     let onPaste: () -> Void
-    @ViewBuilder let label: () -> MenuLabel
 
     @Environment(\.scenePhase) private var scenePhase
     @State private var pasteboardLabel: String?
@@ -16,10 +16,6 @@ struct AddPagesMenu<MenuLabel: View>: View {
 
     var body: some View {
         Menu {
-            Button(action: onScan) {
-                Label("Scan", systemImage: "doc.viewfinder")
-            }
-
             Button(action: onImportPDF) {
                 Label("Import PDF", systemImage: "doc.badge.plus")
             }
@@ -29,8 +25,12 @@ struct AddPagesMenu<MenuLabel: View>: View {
             }
             .disabled(pasteboardLabel == nil)
         } label: {
-            label()
+            Image(systemName: "square.and.arrow.down")
+                .font(.headline)
+                .frame(minWidth: 28)
         }
+        .accessibilityLabel("Import")
+        .accessibilityHint("Import a PDF or paste an image")
         .onAppear { refreshPasteboard(force: true) }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
@@ -50,7 +50,7 @@ struct AddPagesMenu<MenuLabel: View>: View {
     }
 
     private var pasteButtonTitle: String {
-        pasteboardLabel.map { "Paste (\($0))" } ?? "Paste Image"
+        pasteboardLabel.map { "Paste \($0)" } ?? "Paste Image"
     }
 
     private func refreshPasteboard(force: Bool = false) {

@@ -4,14 +4,6 @@ struct QualityBadge: View {
     let quality: ScanQualityState
     var compact = false
 
-    private var color: Color {
-        switch quality {
-        case .analyzing: .secondary
-        case .ready where quality.needsReview: .orange
-        case .ready: .green
-        }
-    }
-
     var body: some View {
         HStack(spacing: 4) {
             if case .analyzing = quality {
@@ -21,19 +13,20 @@ struct QualityBadge: View {
                 Image(systemName: quality.systemImage)
             }
             if !compact || quality.needsReview {
-                Text(quality.title)
+                Text(compact ? "Review" : quality.title)
                     .lineLimit(1)
             }
         }
         .font(.caption.weight(.semibold))
-        .foregroundStyle(color)
+        .foregroundStyle(quality.tintColor)
         .padding(.horizontal, compact ? 0 : 9)
         .padding(.vertical, compact ? 0 : 6)
         .background {
             if !compact {
-                Capsule().fill(color.opacity(0.12))
+                Capsule().fill(quality.tintColor.opacity(0.12))
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(quality.title)
     }
 }
-

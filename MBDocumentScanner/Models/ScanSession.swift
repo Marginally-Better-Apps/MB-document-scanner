@@ -33,6 +33,10 @@ final class ScanSession: ObservableObject, Identifiable {
         pages.filter(\.quality.needsReview).count
     }
 
+    var isAnalyzing: Bool {
+        pages.contains { $0.quality == .analyzing }
+    }
+
     var thumbnail: UIImage? {
         pages.first?.image
     }
@@ -102,6 +106,24 @@ final class ScanSession: ObservableObject, Identifiable {
         pages[index].quality = .analyzing
         documentChanged(forceImageIDs: [pageID])
         analyze(pageID: pageID, image: image)
+    }
+
+    /// Swaps a page for a fresh capture. Any extra captured pages are inserted right after it.
+    func replace(pageID: UUID, with images: [UIImage]) {
+        guard let index = pages.firstIndex(where: { $0.id == pageID }),
+              let replacement = images.first?.normalizedOrientation() else { return }
+        pages[index].image = replacement
+        pages[index].recognizedText = ""
+        pages[index].quality = .analyzing
+
+        let extraPages = images.dropFirst().map { ScannedPage(image: $0.normalizedOrientation()) }
+        pages.insert(contentsOf: extraPages, at: index + 1)
+        documentChanged(forceImageIDs: [pageID])
+
+        analyze(pageID: pageID, image: replacement)
+        for page in extraPages {
+            analyze(pageID: page.id, image: page.image)
+        }
     }
 
     func page(withID id: UUID) -> ScannedPage? {

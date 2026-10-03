@@ -22,7 +22,7 @@
 		4563D9687992F5B8A3C23AD0 /* ExportOptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 389C23987DAC66C6A9519337 /* ExportOptionsView.swift */; };
 		58071E3F4852C9FE84FEA2CA /* DocumentCropperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD83062291E1469E73AF5C75 /* DocumentCropperTests.swift */; };
 		5B78EA6DA396EA526560C9A6 /* ScannedPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD4A0C4A6E9E4C46CB97A4F6 /* ScannedPage.swift */; };
-		5BEF2BC1AE6474BA67A010D7 /* AddPagesMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48FC14CDA8D031802E7AA54B /* AddPagesMenu.swift */; };
+		5D2CA754267B573C1B5A83C7 /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD5C3829CBA57E7774149D83 /* DesignSystem.swift */; };
 		63C37D3CEF541787C557A1BF /* EmptyScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E4B83E0B093918E087E0208 /* EmptyScanView.swift */; };
 		669AE9CA068B067D15B6FF1A /* ScanLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFB49ABF0636E861CA567D50 /* ScanLibrary.swift */; };
 		6B7E1AFFE38CBE856E0DA8BF /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5F61C144CA9681EB24038F2 /* ExportService.swift */; };
@@ -30,6 +30,7 @@
 		87F68153AA6AE7AA52D8C97C /* PDFPageSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A31F71A4E0981387A57A4A /* PDFPageSelectionView.swift */; };
 		907F8CA26355498BEB21C353 /* DocumentScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E8F78551BE488988CC941FC /* DocumentScannerView.swift */; };
 		9CF0754DE1EF3EF079BD6CDE /* QualityBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E68807E5A4944898D330085 /* QualityBadge.swift */; };
+		9DC88642BD7E8B2B7268A0A3 /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9FDEEE0DBA889618F235837 /* ZoomableImageView.swift */; };
 		A149864F627CA1F7696A9558 /* PasteboardImageImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9467AB205BAE5900836BF400 /* PasteboardImageImporter.swift */; };
 		A20D42ED71FA38F176FBFB02 /* ScanDocumentStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E894B6249B5F2B9EA4DB3BBA /* ScanDocumentStoreTests.swift */; };
 		A9944868F617B4ED965DA763 /* DocumentAnalyzerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7BB3C2D036EF777CED9D12F /* DocumentAnalyzerTests.swift */; };
@@ -39,6 +40,7 @@
 		D081E1219D090640558EEE69 /* ScanLibraryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BB48FC28AD852E67AC8C318 /* ScanLibraryRow.swift */; };
 		D61BA5C0FD33D4A3E6A8EAF9 /* PageDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34338FFB6C712F3AAB41C5B2 /* PageDetailView.swift */; };
 		D7F576D65E22F2D5A4914C44 /* DocumentCropper.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2F1D3B7A8726BCEB90B4CE /* DocumentCropper.swift */; };
+		DE11137D12AAF997D35744B9 /* ImportMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 622B25063436B22A1447F8BF /* ImportMenu.swift */; };
 		EE80E5043B2268D3C098B1D2 /* QualitySummaryCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E15647FDFD7C778813790FB /* QualitySummaryCard.swift */; };
 		F4FD9D4B3C670E304A9B761E /* DocumentContentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 433EFAE0F744761668E50A36 /* DocumentContentsView.swift */; };
 		FD46DDC62E6CDA0A60DA4E3B /* ScanDocumentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B37D10151FC0201EBCC15D2 /* ScanDocumentStore.swift */; };
@@ -56,7 +58,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		0BC930631089F9FEF3E5A767 /* MBDocumentScanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MBDocumentScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0BC930631089F9FEF3E5A767 /* MBDocumentScanner.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MBDocumentScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		122C1A03D42126F6A62EB06D /* MBDocumentScannerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MBDocumentScannerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		23440EFA44687E4E77AF1F84 /* PDFPageImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFPageImporter.swift; sourceTree = "<group>"; };
 		26A31F71A4E0981387A57A4A /* PDFPageSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFPageSelectionView.swift; sourceTree = "<group>"; };
@@ -65,12 +67,12 @@
 		389C23987DAC66C6A9519337 /* ExportOptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportOptionsView.swift; sourceTree = "<group>"; };
 		3BB48FC28AD852E67AC8C318 /* ScanLibraryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanLibraryRow.swift; sourceTree = "<group>"; };
 		433EFAE0F744761668E50A36 /* DocumentContentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentContentsView.swift; sourceTree = "<group>"; };
-		48FC14CDA8D031802E7AA54B /* AddPagesMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddPagesMenu.swift; sourceTree = "<group>"; };
 		4B2F4C1288E8A12AEB63A668 /* ScanQuality.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanQuality.swift; sourceTree = "<group>"; };
 		4CAF2792190C5A47E6F40E2B /* PDFPageImporterModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFPageImporterModifier.swift; sourceTree = "<group>"; };
 		5E4B83E0B093918E087E0208 /* EmptyScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyScanView.swift; sourceTree = "<group>"; };
 		5E68807E5A4944898D330085 /* QualityBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QualityBadge.swift; sourceTree = "<group>"; };
 		5E8F78551BE488988CC941FC /* DocumentScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentScannerView.swift; sourceTree = "<group>"; };
+		622B25063436B22A1447F8BF /* ImportMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportMenu.swift; sourceTree = "<group>"; };
 		6B37D10151FC0201EBCC15D2 /* ScanDocumentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanDocumentStore.swift; sourceTree = "<group>"; };
 		701767231C9837AB833B0811 /* DocumentAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentAnalyzer.swift; sourceTree = "<group>"; };
 		76F8A9C0FF204DCE87055C24 /* RecognizedTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecognizedTextView.swift; sourceTree = "<group>"; };
@@ -86,10 +88,12 @@
 		CC80320CCD50AEF9328AEF59 /* ExportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportServiceTests.swift; sourceTree = "<group>"; };
 		CD83062291E1469E73AF5C75 /* DocumentCropperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentCropperTests.swift; sourceTree = "<group>"; };
 		D342FDD7F1B71C9556365C7F /* PDFPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFPreviewView.swift; sourceTree = "<group>"; };
+		DD5C3829CBA57E7774149D83 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		DDA14B601F9E811B620683B2 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		DFB49ABF0636E861CA567D50 /* ScanLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanLibrary.swift; sourceTree = "<group>"; };
 		E0065A9F15A147F9A68EE9D8 /* CompressionPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompressionPreset.swift; sourceTree = "<group>"; };
 		E894B6249B5F2B9EA4DB3BBA /* ScanDocumentStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanDocumentStoreTests.swift; sourceTree = "<group>"; };
+		E9FDEEE0DBA889618F235837 /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageView.swift; sourceTree = "<group>"; };
 		F5F61C144CA9681EB24038F2 /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
 		F7BB3C2D036EF777CED9D12F /* DocumentAnalyzerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentAnalyzerTests.swift; sourceTree = "<group>"; };
 		FBC331739E1076A5D7603D25 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -178,14 +182,16 @@
 		BF3B2FE39F504CD5BDC0A032 /* Components */ = {
 			isa = PBXGroup;
 			children = (
-				48FC14CDA8D031802E7AA54B /* AddPagesMenu.swift */,
+				DD5C3829CBA57E7774149D83 /* DesignSystem.swift */,
 				5E4B83E0B093918E087E0208 /* EmptyScanView.swift */,
+				622B25063436B22A1447F8BF /* ImportMenu.swift */,
 				90332D5B42641F54D851894B /* PageCard.swift */,
 				4CAF2792190C5A47E6F40E2B /* PDFPageImporterModifier.swift */,
 				5E68807E5A4944898D330085 /* QualityBadge.swift */,
 				7E15647FDFD7C778813790FB /* QualitySummaryCard.swift */,
 				3BB48FC28AD852E67AC8C318 /* ScanLibraryRow.swift */,
 				DDA14B601F9E811B620683B2 /* ShareSheet.swift */,
+				E9FDEEE0DBA889618F235837 /* ZoomableImageView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -259,6 +265,8 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = F9857380CA012B5B2A4FD67D /* Build configuration list for PBXProject "MBDocumentScanner" */;
 			developmentRegion = en;
@@ -299,9 +307,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5BEF2BC1AE6474BA67A010D7 /* AddPagesMenu.swift in Sources */,
 				055D407466394CC957D599F4 /* CompressionPreset.swift in Sources */,
 				292847912CB2CD476DD2F8EA /* CropPageView.swift in Sources */,
+				5D2CA754267B573C1B5A83C7 /* DesignSystem.swift in Sources */,
 				365118CFBDAA823113DF4B80 /* DocumentAnalyzer.swift in Sources */,
 				F4FD9D4B3C670E304A9B761E /* DocumentContentsView.swift in Sources */,
 				D7F576D65E22F2D5A4914C44 /* DocumentCropper.swift in Sources */,
@@ -309,6 +317,7 @@
 				63C37D3CEF541787C557A1BF /* EmptyScanView.swift in Sources */,
 				4563D9687992F5B8A3C23AD0 /* ExportOptionsView.swift in Sources */,
 				6B7E1AFFE38CBE856E0DA8BF /* ExportService.swift in Sources */,
+				DE11137D12AAF997D35744B9 /* ImportMenu.swift in Sources */,
 				B5B58E47688DCDF0B019A69E /* MBDocumentScannerApp.swift in Sources */,
 				7ABBCBBE02FF7E3AD9B6D3E0 /* PDFPageImporter.swift in Sources */,
 				2A796A01583221A840F1450C /* PDFPageImporterModifier.swift in Sources */,
@@ -328,6 +337,7 @@
 				035252EC49B625318366135F /* ScanSession.swift in Sources */,
 				5B78EA6DA396EA526560C9A6 /* ScannedPage.swift in Sources */,
 				BFE6D0D7385D0F6D60F4D7A5 /* ShareSheet.swift in Sources */,
+				9DC88642BD7E8B2B7268A0A3 /* ZoomableImageView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -413,7 +423,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = KPAFTUKTFY;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "MB Document Scanner";
 				INFOPLIST_KEY_NSCameraUsageDescription = "MB Document Scanner uses the camera only to scan documents on this device.";
@@ -531,7 +540,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = KPAFTUKTFY;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "MB Document Scanner";
 				INFOPLIST_KEY_NSCameraUsageDescription = "MB Document Scanner uses the camera only to scan documents on this device.";

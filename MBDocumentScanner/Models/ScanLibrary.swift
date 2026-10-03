@@ -41,7 +41,7 @@ final class ScanLibrary: ObservableObject {
         let importedTitle = title?.trimmingCharacters(in: .whitespacesAndNewlines)
         let document = ScanSession(
             title: importedTitle.flatMap { $0.isEmpty ? nil : $0 }
-                ?? "Scan \(now.formatted(date: .abbreviated, time: .shortened))",
+                ?? "Scan \(now.formatted(.dateTime.month(.abbreviated).day().hour().minute()))",
             createdAt: now,
             modifiedAt: now
         )

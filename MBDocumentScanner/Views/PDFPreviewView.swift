@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct PDFPreviewView: View {
     let url: URL
     let pageCount: Int
+    var onFinish: () -> Void = {}
     private let exportDocument: PDFExportDocument?
 
     @Environment(\.dismiss) private var dismiss
@@ -12,9 +13,10 @@ struct PDFPreviewView: View {
     @State private var didSave = false
     @State private var saveError: String?
 
-    init(url: URL, pageCount: Int) {
+    init(url: URL, pageCount: Int, onFinish: @escaping () -> Void = {}) {
         self.url = url
         self.pageCount = pageCount
+        self.onFinish = onFinish
         exportDocument = try? PDFExportDocument(contentsOf: url)
     }
 
@@ -22,7 +24,7 @@ struct PDFPreviewView: View {
         NavigationStack {
             PDFDocumentView(url: url)
                 .background(Color(uiColor: .systemGroupedBackground))
-                .navigationTitle("PDF Preview")
+                .navigationTitle("Preview")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -41,16 +43,20 @@ struct PDFPreviewView: View {
         ) { result in
             switch result {
             case .success:
+                Haptics.success()
                 didSave = true
             case let .failure(error):
                 saveError = error.localizedDescription
             }
         }
         .alert("PDF Saved", isPresented: $didSave) {
-            Button("Done") { dismiss() }
-            Button("Save Another Copy") { isSavePresented = true }
+            Button("Done") {
+                onFinish()
+                dismiss()
+            }
+            Button("Keep Previewing", role: .cancel) {}
         } message: {
-            Text("A copy of the reviewed PDF was saved successfully.")
+            Text("Your PDF was saved to the location you chose.")
         }
         .alert("Unable to Save PDF", isPresented: Binding(
             get: { saveError != nil },
@@ -63,29 +69,37 @@ struct PDFPreviewView: View {
     }
 
     private var saveBar: some View {
-        VStack(spacing: 8) {
-            Text("\(pageCount) \(pageCount == 1 ? "page" : "pages") • \(formattedFileSize)")
+        BottomActionBar {
+            Text("\(pageCountText(pageCount)) · \(formattedFileSize)")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            Button {
-                if exportDocument == nil {
-                    saveError = "The prepared PDF could not be opened. Please return to Export and try again."
-                } else {
-                    isSavePresented = true
+            HStack(spacing: 12) {
+                Button {
+                    if exportDocument == nil {
+                        saveError = "The prepared PDF could not be opened. Please return to Export and try again."
+                    } else {
+                        isSavePresented = true
+                    }
+                } label: {
+                    Label("Save to Files", systemImage: "folder")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
                 }
-            } label: {
-                Label("Save PDF", systemImage: "folder.badge.plus")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
+                .buttonStyle(.bordered)
+
+                ShareLink(
+                    item: url,
+                    preview: SharePreview(exportFilename, image: Image(systemName: "doc.richtext"))
+                ) {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
             .controlSize(.large)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .background(.bar)
     }
 
     private var formattedFileSize: String {

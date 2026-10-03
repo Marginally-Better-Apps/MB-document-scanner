@@ -11,46 +11,50 @@ struct ExportOptionsView: View {
     @State private var isSharePresented = false
     @State private var pdfPreview: PDFPreviewItem?
     @State private var exportError: String?
+    @State private var isFinished = false
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Format") {
+                Section {
                     Picker("Format", selection: $format) {
                         ForEach(ExportFormat.allCases) { option in
-                            Label(option.title, systemImage: option.systemImage)
-                                .tag(option)
+                            Text(option.title).tag(option)
                         }
                     }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                } header: {
+                    Text("Format")
+                } footer: {
+                    Text(outputSummary)
                 }
 
                 Section {
-                    Picker("Compression", selection: $compression) {
+                    Picker("Quality", selection: $compression) {
                         ForEach(CompressionPreset.allCases) { preset in
                             Text(preset.shortTitle).tag(preset)
                         }
                     }
                     .pickerStyle(.segmented)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(compression.title)
-                            .font(.subheadline.weight(.medium))
-                        Text(compression.detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 4)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 } header: {
-                    Text("Compression")
+                    Text("Quality")
                 } footer: {
-                    Text("Compression is applied locally. Your original scan stays unchanged.")
+                    Text("\(compression.title): \(compression.detail). Your original scan stays unchanged.")
                 }
 
-                Section("Summary") {
-                    LabeledContent("Pages", value: "\(session.pages.count)")
-                    LabeledContent("Output", value: format == .pdf ? "One PDF" : "\(session.pages.count) JPEG files")
+                if session.pagesNeedingReview > 0 {
+                    Section {
+                        Label(
+                            "\(session.pagesNeedingReview) \(session.pagesNeedingReview == 1 ? "page needs" : "pages need") review. You can still export, or close this to fix them first.",
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(.orange)
+                    }
                 }
             }
             .navigationTitle("Export")
@@ -58,34 +62,44 @@ struct ExportOptionsView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .disabled(isExporting)
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                Button(action: export) {
-                    HStack {
-                        if isExporting {
-                            ProgressView().tint(.white)
-                        } else {
-                            Image(systemName: format == .pdf ? "doc.text.magnifyingglass" : "square.and.arrow.up")
+                BottomActionBar {
+                    Button(action: export) {
+                        HStack {
+                            if isExporting {
+                                ProgressView().tint(.white)
+                            } else {
+                                Image(systemName: format == .pdf ? "doc.richtext" : "square.and.arrow.up")
+                            }
+                            Text(exportButtonTitle)
                         }
-                        Text(exportButtonTitle)
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
                     }
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(isExporting || session.isEmpty)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .disabled(isExporting)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(.bar)
             }
         }
-        .sheet(isPresented: $isSharePresented) {
-            ShareSheet(activityItems: shareItems)
+        .interactiveDismissDisabled(isExporting)
+        .sheet(isPresented: $isSharePresented, onDismiss: dismissIfFinished) {
+            ShareSheet(activityItems: shareItems) { completed in
+                isFinished = completed
+                isSharePresented = false
+            }
+            .presentationDetents([.medium, .large])
+            .ignoresSafeArea()
         }
-        .fullScreenCover(item: $pdfPreview) { preview in
-            PDFPreviewView(url: preview.url, pageCount: session.pages.count)
+        .fullScreenCover(item: $pdfPreview, onDismiss: dismissIfFinished) { preview in
+            PDFPreviewView(
+                url: preview.url,
+                pageCount: session.pages.count,
+                onFinish: { isFinished = true }
+            )
         }
         .alert("Export Failed", isPresented: Binding(
             get: { exportError != nil },
@@ -97,13 +111,33 @@ struct ExportOptionsView: View {
         }
     }
 
+    private var outputSummary: String {
+        let count = session.pages.count
+        switch format {
+        case .pdf:
+            return "One PDF with \(pageCountText(count)). You can preview it before sharing or saving."
+        case .images:
+            return count == 1 ? "One JPEG image." : "\(count) separate JPEG images, one per page."
+        }
+    }
+
     private var exportButtonTitle: String {
         if isExporting { return "Preparing…" }
-        return format == .pdf ? "Preview PDF" : "Export Images"
+        switch format {
+        case .pdf:
+            return "Preview PDF"
+        case .images:
+            return session.pages.count == 1 ? "Share Image" : "Share \(session.pages.count) Images"
+        }
+    }
+
+    private func dismissIfFinished() {
+        if isFinished { dismiss() }
     }
 
     private func export() {
         isExporting = true
+        isFinished = false
         Task {
             do {
                 let urls = try await ExportService.export(

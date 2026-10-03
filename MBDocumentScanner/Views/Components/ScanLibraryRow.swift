@@ -7,42 +7,44 @@ struct ScanLibraryRow: View {
         HStack(spacing: 14) {
             thumbnail
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(session.title)
                     .font(.headline)
                     .foregroundStyle(.primary)
+                    .lineLimit(2)
+
+                Text("\(pageCountText(session.pages.count)) · \(session.modifiedAt.formatted(.relative(presentation: .named)))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                HStack(spacing: 6) {
-                    Text("\(session.pages.count) \(session.pages.count == 1 ? "page" : "pages")")
-                    Text("•")
-                    Text(session.modifiedAt, style: .date)
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-                if session.pagesNeedingReview > 0 {
-                    Label(
-                        "\(session.pagesNeedingReview) to review",
-                        systemImage: "exclamationmark.triangle.fill"
-                    )
+                status
+                    .labelStyle(CompactLabelStyle())
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(.orange)
-                } else if session.pages.contains(where: { $0.quality == .analyzing }) {
-                    Label("Checking pages…", systemImage: "hourglass")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                } else {
-                    Label("Ready", systemImage: "checkmark.circle.fill")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.green)
-                }
+                    .padding(.top, 2)
             }
 
-            Spacer(minLength: 4)
+            Spacer(minLength: 0)
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var status: some View {
+        if session.pagesNeedingReview > 0 {
+            Label(
+                "\(session.pagesNeedingReview) \(session.pagesNeedingReview == 1 ? "page needs" : "pages need") review",
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .foregroundStyle(.orange)
+        } else if session.isAnalyzing {
+            Label(ScanQualityState.analyzing.title, systemImage: ScanQualityState.analyzing.systemImage)
+                .foregroundStyle(.secondary)
+        } else if !session.isEmpty {
+            Label("Looks Good", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        }
     }
 
     private var thumbnail: some View {
@@ -57,15 +59,17 @@ struct ScanLibraryRow: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .frame(width: 58, height: 74)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.07), radius: 3, y: 1)
+        .frame(width: 56, height: 72)
         .clipped()
+        .pageSurface(cornerRadius: 8)
     }
 }
 
+private struct CompactLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            configuration.icon
+            configuration.title
+        }
+    }
+}

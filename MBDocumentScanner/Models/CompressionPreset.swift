@@ -57,7 +57,7 @@ enum ExportFormat: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .pdf: "PDF"
-        case .images: "JPEG Pages"
+        case .images: "JPEG Images"
         }
     }
 

@@ -69,7 +69,7 @@ struct CropPageView: View {
         .interactiveDismissDisabled(isApplying)
         .onChange(of: cropMode) { oldMode, newMode in
             convertCrop(from: oldMode, to: newMode)
-            UISelectionFeedbackGenerator().selectionChanged()
+            Haptics.selection()
         }
         .alert("Unable to Crop Page", isPresented: Binding(
             get: { cropError != nil },
@@ -82,7 +82,7 @@ struct CropPageView: View {
     }
 
     private var applyBar: some View {
-        VStack(spacing: 10) {
+        BottomActionBar {
             Picker("Crop Mode", selection: $cropMode) {
                 ForEach(CropMode.allCases) { mode in
                     Text(mode.title).tag(mode)
@@ -104,10 +104,7 @@ struct CropPageView: View {
             .controlSize(.large)
             .disabled(isApplying)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .background(.bar)
+        .environment(\.colorScheme, .dark)
     }
 
     private func applyCrop() {
@@ -184,7 +181,7 @@ struct CropPageView: View {
 
     private func aspectFitRect(for imageSize: CGSize, in availableSize: CGSize) -> CGRect {
         guard imageSize.width > 0, imageSize.height > 0 else { return .zero }
-        let handleMargin: CGFloat = 18
+        let handleMargin: CGFloat = 24
         let usableSize = CGSize(
             width: max(1, availableSize.width - handleMargin * 2),
             height: max(1, availableSize.height - handleMargin * 2)
@@ -264,23 +261,28 @@ private struct PerspectiveCropOverlay: View {
             path.addLine(to: viewPoint(for: quadrilateral.bottomLeft))
             path.closeSubpath()
         }
-        .stroke(.blue, style: StrokeStyle(lineWidth: 3, lineJoin: .round))
+        .stroke(.tint, style: StrokeStyle(lineWidth: 3, lineJoin: .round))
         .allowsHitTesting(false)
     }
 
     private func handle(for corner: CropCorner) -> some View {
         Circle()
             .fill(.white)
-            .frame(width: 30, height: 30)
+            .frame(width: 28, height: 28)
             .overlay {
-                Circle().stroke(.blue, lineWidth: 5)
+                Circle().stroke(.tint, lineWidth: 5)
             }
             .shadow(color: .black.opacity(0.35), radius: 3, y: 1)
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
             .position(viewPoint(for: point(for: corner)))
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         move(corner, to: normalizedPoint(for: value.location))
+                    }
+                    .onEnded { _ in
+                        Haptics.impact()
                     }
             )
             .accessibilityLabel(corner.accessibilityLabel)
@@ -396,7 +398,7 @@ private struct UniformCropOverlay: View {
                     }
                     .onEnded { _ in
                         dragStartRect = nil
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        Haptics.impact()
                     }
             )
             .accessibilityLabel("Crop selection")
@@ -405,7 +407,7 @@ private struct UniformCropOverlay: View {
 
     private var cropOutline: some View {
         Path(viewCropRect)
-            .stroke(.blue, style: StrokeStyle(lineWidth: 3, lineJoin: .round))
+            .stroke(.tint, style: StrokeStyle(lineWidth: 3, lineJoin: .round))
             .allowsHitTesting(false)
     }
 
@@ -428,11 +430,13 @@ private struct UniformCropOverlay: View {
     private func resizeHandle(_ handle: UniformCropHandle) -> some View {
         Circle()
             .fill(.white)
-            .frame(width: handle.isCorner ? 28 : 24, height: handle.isCorner ? 28 : 24)
+            .frame(width: handle.isCorner ? 28 : 22, height: handle.isCorner ? 28 : 22)
             .overlay {
-                Circle().stroke(.blue, lineWidth: 4)
+                Circle().stroke(.tint, lineWidth: 4)
             }
             .shadow(color: .black.opacity(0.35), radius: 3, y: 1)
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
             .position(viewPoint(for: normalizedPoint(for: handle)))
             .gesture(
                 DragGesture(minimumDistance: 0)
@@ -440,7 +444,7 @@ private struct UniformCropOverlay: View {
                         resize(handle, to: normalizedPoint(for: value.location))
                     }
                     .onEnded { _ in
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        Haptics.impact()
                     }
             )
             .accessibilityLabel(handle.accessibilityLabel)

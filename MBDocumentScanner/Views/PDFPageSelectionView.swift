@@ -40,9 +40,8 @@ struct PDFPageSelectionView: View {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 96)
                 }
-                .padding(.top, 12)
+                .padding(.vertical, 12)
             }
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("Choose PDF Pages")
@@ -53,7 +52,7 @@ struct PDFPageSelectionView: View {
                         .disabled(isImporting)
                 }
 
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button(selectionButtonTitle, action: toggleAllPages)
                         .disabled(isImporting)
                 }
@@ -82,29 +81,31 @@ struct PDFPageSelectionView: View {
             } else {
                 selectedIndexes.insert(page.index)
             }
-            UISelectionFeedbackGenerator().selectionChanged()
+            Haptics.selection()
         } label: {
             VStack(spacing: 8) {
-                ZStack(alignment: .topTrailing) {
-                    Image(uiImage: page.thumbnail)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.white)
-
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title2)
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(isSelected ? Color.white : Color.secondary, isSelected ? Color.blue : Color.white)
-                        .padding(8)
-                }
-                .aspectRatio(0.74, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(isSelected ? Color.blue : Color.primary.opacity(0.10), lineWidth: isSelected ? 3 : 1)
-                }
-                .shadow(color: .black.opacity(0.08), radius: 7, y: 3)
+                Color.white
+                    .aspectRatio(0.74, contentMode: .fit)
+                    .overlay {
+                        Image(uiImage: page.thumbnail)
+                            .resizable()
+                            .scaledToFit()
+                            .opacity(isSelected ? 1 : 0.55)
+                    }
+                    .pageSurface()
+                    .overlay {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: PageSurface.cornerRadius, style: .continuous)
+                                .stroke(Color.accentColor, lineWidth: 3)
+                        }
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.title2)
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(isSelected ? Color.white : Color.secondary, isSelected ? Color.accentColor : Color.white)
+                            .padding(8)
+                    }
 
                 Text("Page \(page.index + 1)")
                     .font(.subheadline.weight(.semibold))
@@ -114,11 +115,11 @@ struct PDFPageSelectionView: View {
         .buttonStyle(.plain)
         .disabled(isImporting)
         .accessibilityLabel("Page \(page.index + 1)")
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var importBar: some View {
-        VStack(spacing: 8) {
+        BottomActionBar {
             Text(selectionSummary)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -140,10 +141,6 @@ struct PDFPageSelectionView: View {
             .controlSize(.large)
             .disabled(selectedIndexes.isEmpty || isImporting)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .background(.bar)
     }
 
     private var selectionButtonTitle: String {
@@ -153,7 +150,7 @@ struct PDFPageSelectionView: View {
     private var selectionSummary: String {
         if selectedIndexes.isEmpty { return "No pages selected" }
         if selectedIndexes.count == source.pages.count {
-            return "All \(source.pages.count) \(source.pages.count == 1 ? "page" : "pages") selected"
+            return source.pages.count == 1 ? "1 page selected" : "All \(source.pages.count) pages selected"
         }
         return "\(selectedIndexes.count) of \(source.pages.count) pages selected"
     }
@@ -172,7 +169,7 @@ struct PDFPageSelectionView: View {
         } else {
             selectedIndexes = Set(source.pages.map(\.index))
         }
-        UISelectionFeedbackGenerator().selectionChanged()
+        Haptics.selection()
     }
 
     private func importSelectedPages() {

@@ -8,7 +8,7 @@ struct QualitySummaryCard: View {
             HStack(spacing: 12) {
                 Image(systemName: quality.systemImage)
                     .font(.title2)
-                    .foregroundStyle(summaryColor)
+                    .foregroundStyle(quality.tintColor)
                     .frame(width: 34)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -19,7 +19,7 @@ struct QualitySummaryCard: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("Analyzing on device")
+                        Text("Checking lighting, sharpness, and text on device")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -39,16 +39,7 @@ struct QualitySummaryCard: View {
                 }
             }
         }
-        .background(Color(uiColor: .secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-    }
-
-    private var summaryColor: Color {
-        switch quality {
-        case .analyzing: .secondary
-        case .ready where quality.needsReview: .orange
-        case .ready: .green
-        }
+        .cardSurface()
     }
 }
 
@@ -75,8 +66,9 @@ private struct QualityCheckRow: View {
 
             Image(systemName: check.passed ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
                 .foregroundStyle(check.passed ? Color.green : Color.orange)
-                .accessibilityLabel(check.passed ? "Passed" : "Review")
+                .accessibilityLabel(check.passed ? "Passed" : "Needs review")
         }
+        .accessibilityElement(children: .combine)
         .padding(.horizontal, 16)
         .padding(.vertical, 11)
     }

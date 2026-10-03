@@ -21,7 +21,7 @@ enum ScanQualityState: Equatable, Codable {
 
     var title: String {
         switch self {
-        case .analyzing: "Checking scan…"
+        case .analyzing: "Checking Scan…"
         case .ready where needsReview: "Needs Review"
         case .ready: "Looks Good"
         }

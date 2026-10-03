@@ -8,10 +8,15 @@ private enum LibraryRoute: Hashable {
 struct RootView: View {
     @StateObject private var library = ScanLibrary()
     @State private var path = NavigationPath()
+    @State private var searchText = ""
     @State private var isScannerPresented = false
     @State private var isPDFImporterPresented = false
     @State private var scannerError: String?
     @State private var pendingDeletion: ScanSession?
+    @State private var renamingDocument: ScanSession?
+    @State private var isRenamePresented = false
+    @State private var draftTitle = ""
+    @State private var exportingDocument: ScanSession?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -26,7 +31,7 @@ struct RootView: View {
             .navigationTitle("Scans")
             .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .bottom) {
-                newScanButton
+                newScanBar
             }
             .navigationDestination(for: LibraryRoute.self) { route in
                 switch route {
@@ -64,6 +69,16 @@ struct RootView: View {
                 scannerError = error.localizedDescription
             }
         )
+        .sheet(item: $exportingDocument) { document in
+            ExportOptionsView(session: document)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .alert("Rename Scan", isPresented: $isRenamePresented) {
+            TextField("Name", text: $draftTitle)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") { renamingDocument?.rename(to: draftTitle) }
+        }
         .confirmationDialog(
             "Delete \(pendingDeletion?.title ?? "this scan")?",
             isPresented: Binding(
@@ -92,45 +107,100 @@ struct RootView: View {
         }
     }
 
+    private var filteredDocuments: [ScanSession] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return library.documents }
+        return library.documents.filter { document in
+            document.title.localizedStandardContains(query)
+                || document.pages.contains { $0.recognizedText.localizedStandardContains(query) }
+        }
+    }
+
     private var scansList: some View {
         List {
-            Section {
-                ForEach(library.documents) { document in
-                    NavigationLink(value: LibraryRoute.document(document.id)) {
-                        ScanLibraryRow(session: document)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            pendingDeletion = document
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+            if filteredDocuments.isEmpty {
+                ContentUnavailableView.search(text: searchText)
+                    .listRowBackground(Color.clear)
+            } else {
+                Section {
+                    ForEach(filteredDocuments) { document in
+                        NavigationLink(value: LibraryRoute.document(document.id)) {
+                            ScanLibraryRow(session: document)
+                        }
+                        .contextMenu { documentActions(for: document) }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                pendingDeletion = document
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+
+                            Button {
+                                exportingDocument = document
+                            } label: {
+                                Label("Export", systemImage: "square.and.arrow.up")
+                            }
+                            .tint(.accentColor)
                         }
                     }
+                } header: {
+                    Text(searchText.isEmpty ? "On This iPhone" : "Results")
                 }
-            } header: {
-                Text("On This iPhone")
             }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search titles and text"
+        )
     }
 
-    private var newScanButton: some View {
-        AddPagesMenu(
-            onScan: beginScanning,
-            onImportPDF: { isPDFImporterPresented = true },
-            onPaste: pasteDocument
-        ) {
-            Label("Add Document", systemImage: "plus.circle.fill")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
+    @ViewBuilder
+    private func documentActions(for document: ScanSession) -> some View {
+        Button {
+            draftTitle = document.title
+            renamingDocument = document
+            isRenamePresented = true
+        } label: {
+            Label("Rename", systemImage: "pencil")
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .background(.bar)
+
+        Button {
+            exportingDocument = document
+        } label: {
+            Label("Export", systemImage: "square.and.arrow.up")
+        }
+        .disabled(document.isEmpty)
+
+        Divider()
+
+        Button(role: .destructive) {
+            pendingDeletion = document
+        } label: {
+            Label("Delete Scan", systemImage: "trash")
+        }
+    }
+
+    private var newScanBar: some View {
+        BottomActionBar {
+            HStack(spacing: 12) {
+                Button(action: beginScanning) {
+                    Label("Scan Document", systemImage: "doc.viewfinder")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                ImportMenu(
+                    onImportPDF: { isPDFImporterPresented = true },
+                    onPaste: pasteDocument
+                )
+                .buttonStyle(.bordered)
+            }
+            .controlSize(.large)
+        }
     }
 
     private var errorBinding: Binding<Bool> {
