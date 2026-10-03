@@ -3,15 +3,23 @@ import VisionKit
 
 private enum LibraryRoute: Hashable {
     case document(UUID)
+    case settings
 }
 
 struct RootView: View {
-    @StateObject private var library = ScanLibrary()
+    @ObservedObject var settings: AppSettings
+    @StateObject private var library: ScanLibrary
     @State private var path = NavigationPath()
     @State private var isScannerPresented = false
+    @State private var isPhotoImporterPresented = false
     @State private var isPDFImporterPresented = false
     @State private var scannerError: String?
     @State private var pendingDeletion: ScanSession?
+
+    init(settings: AppSettings) {
+        self.settings = settings
+        _library = StateObject(wrappedValue: ScanLibrary(settings: settings))
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -22,14 +30,37 @@ struct RootView: View {
                     scansList
                 }
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .background(ScanTheme.background)
             .navigationTitle("Scans")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(ScanTheme.background, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(value: LibraryRoute.settings) {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
+                }
+                ToolbarItem(placement: .principal) {
+                    HStack(spacing: 9) {
+                        Image(systemName: "doc.viewfinder")
+                            .font(.system(size: 19, weight: .semibold))
+                            .foregroundStyle(ScanTheme.accent)
+                            .accessibilityHidden(true)
+                        Text("Scans")
+                            .font(.system(.title3, design: .rounded, weight: .bold))
+                            .foregroundStyle(ScanTheme.ink)
+                    }
+                    .accessibilityAddTraits(.isHeader)
+                }
+            }
             .safeAreaInset(edge: .bottom) {
                 newScanButton
             }
             .navigationDestination(for: LibraryRoute.self) { route in
                 switch route {
+                case .settings:
+                    SettingsView()
                 case let .document(documentID):
                     if let document = library.document(withID: documentID) {
                         DocumentContentsView(library: library, session: document)
@@ -54,6 +85,16 @@ struct RootView: View {
             )
             .ignoresSafeArea()
         }
+        .photoLibraryImporter(
+            isPresented: $isPhotoImporterPresented,
+            onImport: { images in
+                let document = library.createDocument(with: images)
+                path.append(LibraryRoute.document(document.id))
+            },
+            onError: { error in
+                scannerError = error.localizedDescription
+            }
+        )
         .pdfPageImporter(
             isPresented: $isPDFImporterPresented,
             onImport: { images, title in
@@ -64,13 +105,12 @@ struct RootView: View {
                 scannerError = error.localizedDescription
             }
         )
-        .confirmationDialog(
+        .alert(
             "Delete \(pendingDeletion?.title ?? "this scan")?",
             isPresented: Binding(
                 get: { pendingDeletion != nil },
                 set: { if !$0 { pendingDeletion = nil } }
-            ),
-            titleVisibility: .visible
+            )
         ) {
             Button("Delete Scan", role: .destructive) {
                 if let document = pendingDeletion {
@@ -95,10 +135,14 @@ struct RootView: View {
     private var scansList: some View {
         List {
             Section {
-                ForEach(library.documents) { document in
+                ForEach(settings.librarySortOrder.sorted(library.documents)) { document in
                     NavigationLink(value: LibraryRoute.document(document.id)) {
                         ScanLibraryRow(session: document)
                     }
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                    .alignmentGuide(.listRowSeparatorLeading) { _ in -16 }
+                    .listRowBackground(ScanTheme.surface)
+                    .listRowSeparatorTint(ScanTheme.border)
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
                             pendingDeletion = document
@@ -108,29 +152,41 @@ struct RootView: View {
                     }
                 }
             } header: {
-                Text("On This iPhone")
+                Text("Your documents (\(library.documents.count))")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ScanTheme.secondaryInk)
+                    .textCase(nil)
+                    .padding(.bottom, 6)
             }
         }
         .listStyle(.insetGrouped)
+        .contentMargins(.top, 0, for: .scrollContent)
         .scrollContentBackground(.hidden)
     }
 
     private var newScanButton: some View {
-        AddPagesMenu(
-            onScan: beginScanning,
-            onImportPDF: { isPDFImporterPresented = true },
-            onPaste: pasteDocument
-        ) {
-            Label("Add Document", systemImage: "plus.circle.fill")
-                .font(.headline)
+        VStack(spacing: 10) {
+            AddPagesMenu(
+                onScan: beginScanning,
+                onImportPhotos: { isPhotoImporterPresented = true },
+                onImportPDF: { isPDFImporterPresented = true },
+                onPaste: pasteDocument
+            ) {
+                HStack(spacing: 12) {
+                    Image(systemName: "plus")
+                        .font(.body.weight(.semibold))
+                    Text("Add document")
+                }
                 .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(ScanPrimaryButtonStyle())
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .background(.bar)
+        .frame(maxWidth: 552)
+        .padding(.horizontal, 24)
+        .padding(.top, 14)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity)
+        .background(ScanTheme.background)
     }
 
     private var errorBinding: Binding<Bool> {

@@ -4,6 +4,7 @@ import UIKit
 
 struct AddPagesMenu<MenuLabel: View>: View {
     let onScan: () -> Void
+    let onImportPhotos: () -> Void
     let onImportPDF: () -> Void
     let onPaste: () -> Void
     @ViewBuilder let label: () -> MenuLabel
@@ -18,6 +19,10 @@ struct AddPagesMenu<MenuLabel: View>: View {
         Menu {
             Button(action: onScan) {
                 Label("Scan", systemImage: "doc.viewfinder")
+            }
+
+            Button(action: onImportPhotos) {
+                Label("Choose Photos", systemImage: "photo.on.rectangle")
             }
 
             Button(action: onImportPDF) {

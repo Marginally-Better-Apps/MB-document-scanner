@@ -6,34 +6,35 @@ struct QualityBadge: View {
 
     private var color: Color {
         switch quality {
-        case .analyzing: .secondary
+        case .analyzing: ScanTheme.secondaryInk
         case .ready where quality.needsReview: .orange
-        case .ready: .green
+        case .ready where quality.needsVisualReview: ScanTheme.secondaryInk
+        case .ready: ScanTheme.accent
         }
     }
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             if case .analyzing = quality {
                 ProgressView()
                     .controlSize(.mini)
+                    .tint(color)
             } else {
                 Image(systemName: quality.systemImage)
             }
-            if !compact || quality.needsReview {
-                Text(quality.title)
-                    .lineLimit(1)
-            }
+            Text(quality.title)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .font(.caption.weight(.semibold))
+        .font(.caption.weight(.medium))
         .foregroundStyle(color)
-        .padding(.horizontal, compact ? 0 : 9)
-        .padding(.vertical, compact ? 0 : 6)
+        .padding(.horizontal, compact ? 0 : 10)
+        .padding(.vertical, compact ? 0 : 7)
         .background {
             if !compact {
-                Capsule().fill(color.opacity(0.12))
+                Capsule().fill(color.opacity(0.1))
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(quality.title)
     }
 }
-

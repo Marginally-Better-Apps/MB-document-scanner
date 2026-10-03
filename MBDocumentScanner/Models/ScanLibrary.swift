@@ -7,9 +7,11 @@ final class ScanLibrary: ObservableObject {
     @Published var storageError: String?
 
     private let store: ScanDocumentStore
+    private let settings: AppSettings?
 
-    init(store: ScanDocumentStore = ScanDocumentStore()) {
+    init(store: ScanDocumentStore = ScanDocumentStore(), settings: AppSettings? = nil) {
         self.store = store
+        self.settings = settings
 
         do {
             documents = try store.loadAll().map { snapshot in
@@ -18,7 +20,8 @@ final class ScanLibrary: ObservableObject {
                     title: snapshot.title,
                     createdAt: snapshot.createdAt,
                     modifiedAt: snapshot.modifiedAt,
-                    pages: snapshot.pages
+                    pages: snapshot.pages,
+                    settings: settings
                 )
             }
             sortDocuments()
@@ -43,7 +46,8 @@ final class ScanLibrary: ObservableObject {
             title: importedTitle.flatMap { $0.isEmpty ? nil : $0 }
                 ?? "Scan \(now.formatted(date: .abbreviated, time: .shortened))",
             createdAt: now,
-            modifiedAt: now
+            modifiedAt: now,
+            settings: settings
         )
         bind(document)
         documents.insert(document, at: 0)

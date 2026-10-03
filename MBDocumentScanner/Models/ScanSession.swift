@@ -11,6 +11,7 @@ final class ScanSession: ObservableObject, Identifiable {
     @Published private(set) var modifiedAt: Date
 
     private let analyzer = DocumentAnalyzer()
+    private let settings: AppSettings?
     private var changeHandler: ((ScanSession, Set<UUID>) -> Void)?
 
     init(
@@ -18,13 +19,15 @@ final class ScanSession: ObservableObject, Identifiable {
         title: String = "New Scan",
         createdAt: Date = Date(),
         modifiedAt: Date = Date(),
-        pages: [ScannedPage] = []
+        pages: [ScannedPage] = [],
+        settings: AppSettings? = nil
     ) {
         self.id = id
         self.title = title
         self.createdAt = createdAt
         self.modifiedAt = modifiedAt
         self.pages = pages
+        self.settings = settings
     }
 
     var isEmpty: Bool { pages.isEmpty }
@@ -96,6 +99,16 @@ final class ScanSession: ObservableObject, Identifiable {
     }
 
     func applyCrop(pageID: UUID, image: UIImage) {
+        replacePageImage(pageID: pageID, image: image)
+    }
+
+    /// Commits a flattened editor result. OCR is cleared before persistence so
+    /// text hidden by a permanent redaction is never retained in metadata.
+    func applyEdit(pageID: UUID, image: UIImage) {
+        replacePageImage(pageID: pageID, image: image)
+    }
+
+    private func replacePageImage(pageID: UUID, image: UIImage) {
         guard let index = pages.firstIndex(where: { $0.id == pageID }) else { return }
         pages[index].image = image
         pages[index].recognizedText = ""
@@ -112,9 +125,18 @@ final class ScanSession: ObservableObject, Identifiable {
         pages.firstIndex(where: { $0.id == id }).map { $0 + 1 }
     }
 
+    func setWarningDismissed(_ dismissed: Bool, checkID: String, pageID: UUID) {
+        guard let index = pages.firstIndex(where: { $0.id == pageID }) else { return }
+        let quality = pages[index].quality.settingDismissed(dismissed, for: checkID)
+        guard quality != pages[index].quality else { return }
+        pages[index].quality = quality
+        documentChanged()
+    }
+
     private func analyze(pageID: UUID, image: UIImage) {
+        let usesLanguageCorrection = settings?.usesLanguageCorrection ?? true
         Task {
-            let analysis = await analyzer.analyze(image: image)
+            let analysis = await analyzer.analyze(image: image, usesLanguageCorrection: usesLanguageCorrection)
             guard let index = pages.firstIndex(where: { $0.id == pageID }),
                   pages[index].image === image else { return }
             pages[index].recognizedText = analysis.recognizedText
@@ -132,7 +154,11 @@ final class ScanSession: ObservableObject, Identifiable {
 private extension UIImage {
     func normalizedOrientation() -> UIImage {
         guard imageOrientation != .up else { return self }
-        let renderer = UIGraphicsImageRenderer(size: size)
+        let format = UIGraphicsImageRendererFormat()
+        // Photo-library images usually have scale 1; using the screen scale
+        // here would multiply their pixel count just to apply EXIF orientation.
+        format.scale = scale
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
         return renderer.image { _ in
             draw(in: CGRect(origin: .zero, size: size))
         }

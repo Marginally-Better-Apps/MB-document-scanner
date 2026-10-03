@@ -5,14 +5,19 @@ struct PDFPageSelectionView: View {
     let source: PDFPageImportSource
     let onImport: ([UIImage]) -> Void
     let onCancel: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var selectedIndexes: Set<Int>
     @State private var isImporting = false
     @State private var importError: String?
 
-    private let columns = [
-        GridItem(.adaptive(minimum: 132, maximum: 190), spacing: 16)
-    ]
+    private var columns: [GridItem] {
+        if dynamicTypeSize.isAccessibilitySize {
+            return [GridItem(.flexible(minimum: 132, maximum: 400))]
+        }
+        return [GridItem(.adaptive(minimum: 132, maximum: 190), spacing: 16)]
+    }
 
     init(
         source: PDFPageImportSource,
@@ -28,23 +33,33 @@ struct PDFPageSelectionView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Tap a page to include or exclude it from this scan.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 16)
+                VStack(alignment: .leading, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(source.suggestedTitle)
+                            .font(.title2.weight(.bold))
+                            .foregroundStyle(ScanTheme.ink)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                        Text("Keep the pages you need. Tap to select.")
+                            .font(.subheadline)
+                            .foregroundStyle(ScanTheme.secondaryInk)
+
+                        if dynamicTypeSize.isAccessibilitySize {
+                            Button(selectionButtonTitle, action: toggleAllPages)
+                                .buttonStyle(ScanSecondaryButtonStyle())
+                                .disabled(isImporting)
+                                .padding(.top, 8)
+                        }
+                    }
 
                     LazyVGrid(columns: columns, spacing: 20) {
                         ForEach(source.pages) { page in
                             pageButton(page)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 96)
                 }
-                .padding(.top, 12)
+                .padding(24)
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .background(ScanTheme.background)
             .navigationTitle("Choose PDF Pages")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -53,15 +68,18 @@ struct PDFPageSelectionView: View {
                         .disabled(isImporting)
                 }
 
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(selectionButtonTitle, action: toggleAllPages)
-                        .disabled(isImporting)
+                if !dynamicTypeSize.isAccessibilitySize {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(selectionButtonTitle, action: toggleAllPages)
+                            .disabled(isImporting)
+                    }
                 }
             }
             .safeAreaInset(edge: .bottom) {
                 importBar
             }
         }
+        .tint(ScanTheme.accent)
         .interactiveDismissDisabled(isImporting)
         .alert("Unable to Import PDF", isPresented: Binding(
             get: { importError != nil },
@@ -77,51 +95,67 @@ struct PDFPageSelectionView: View {
         let isSelected = selectedIndexes.contains(page.index)
 
         return Button {
-            if isSelected {
-                selectedIndexes.remove(page.index)
-            } else {
-                selectedIndexes.insert(page.index)
+            withAnimation(reduceMotion ? nil : .snappy(duration: 0.22)) {
+                if isSelected {
+                    selectedIndexes.remove(page.index)
+                } else {
+                    selectedIndexes.insert(page.index)
+                }
             }
             UISelectionFeedbackGenerator().selectionChanged()
         } label: {
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 ZStack(alignment: .topTrailing) {
                     Image(uiImage: page.thumbnail)
                         .resizable()
                         .scaledToFit()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(Color.white)
+                        .padding(10)
 
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.title2)
-                        .symbolRenderingMode(.palette)
-                        .foregroundStyle(isSelected ? Color.white : Color.secondary, isSelected ? Color.blue : Color.white)
-                        .padding(8)
+                    ZStack {
+                        Circle()
+                            .fill(isSelected ? ScanTheme.primaryFill : ScanTheme.surface)
+                        if isSelected {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white)
+                        } else {
+                            Circle().strokeBorder(ScanTheme.border, lineWidth: 1.5)
+                        }
+                    }
+                    .frame(width: 28, height: 28)
+                    .padding(12)
                 }
                 .aspectRatio(0.74, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(isSelected ? ScanTheme.accentSoft : ScanTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(isSelected ? Color.blue : Color.primary.opacity(0.10), lineWidth: isSelected ? 3 : 1)
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(isSelected ? ScanTheme.accent : ScanTheme.border, lineWidth: isSelected ? 2 : 1)
                 }
-                .shadow(color: .black.opacity(0.08), radius: 7, y: 3)
 
                 Text("Page \(page.index + 1)")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(isSelected ? ScanTheme.accent : ScanTheme.secondaryInk)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .buttonStyle(.plain)
         .disabled(isImporting)
         .accessibilityLabel("Page \(page.index + 1)")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var importBar: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 12) {
             Text(selectionSummary)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(ScanTheme.secondaryInk)
+                .contentTransition(.numericText())
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
 
             Button(action: importSelectedPages) {
                 HStack {
@@ -132,18 +166,18 @@ struct PDFPageSelectionView: View {
                         Image(systemName: "square.and.arrow.down")
                     }
                     Text(importButtonTitle)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .font(.headline)
                 .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(ScanPrimaryButtonStyle())
             .disabled(selectedIndexes.isEmpty || isImporting)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .background(.bar)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .background(ScanTheme.background)
     }
 
     private var selectionButtonTitle: String {
@@ -167,10 +201,12 @@ struct PDFPageSelectionView: View {
     }
 
     private func toggleAllPages() {
-        if selectedIndexes.count == source.pages.count {
-            selectedIndexes.removeAll()
-        } else {
-            selectedIndexes = Set(source.pages.map(\.index))
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.22)) {
+            if selectedIndexes.count == source.pages.count {
+                selectedIndexes.removeAll()
+            } else {
+                selectedIndexes = Set(source.pages.map(\.index))
+            }
         }
         UISelectionFeedbackGenerator().selectionChanged()
     }

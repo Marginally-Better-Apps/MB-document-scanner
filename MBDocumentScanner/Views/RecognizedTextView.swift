@@ -10,6 +10,10 @@ struct RecognizedTextView: View {
         session.page(withID: pageID)?.recognizedText ?? ""
     }
 
+    private var wordCount: Int {
+        text.split(whereSeparator: \.isWhitespace).count
+    }
+
     var body: some View {
         ScrollView {
             if text.isEmpty {
@@ -20,14 +24,39 @@ struct RecognizedTextView: View {
                 )
                 .padding(.top, 80)
             } else {
-                Text(text)
-                    .font(.body)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(20)
+                VStack(alignment: .leading, spacing: 22) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "text.quote")
+                            .font(.title3)
+                            .foregroundStyle(ScanTheme.accent)
+                            .frame(width: 44, height: 44)
+                            .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 14))
+                            .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Page \(session.pageNumber(for: pageID) ?? 1)")
+                                .font(.headline)
+                                .foregroundStyle(ScanTheme.ink)
+                            Text("\(wordCount) \(wordCount == 1 ? "word" : "words") · Recognized on device")
+                                .font(.caption)
+                                .foregroundStyle(ScanTheme.secondaryInk)
+                        }
+                    }
+
+                    Text(text)
+                        .font(.body)
+                        .lineSpacing(7)
+                        .foregroundStyle(ScanTheme.ink)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(22)
+                        .scanCard()
+                }
+                .padding(20)
             }
         }
-        .background(Color(uiColor: .systemBackground))
+        .background(ScanTheme.background)
+        .tint(ScanTheme.accent)
         .navigationTitle("Recognized Text")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -38,9 +67,11 @@ struct RecognizedTextView: View {
                 } label: {
                     Label(didCopy ? "Copied" : "Copy", systemImage: didCopy ? "checkmark" : "doc.on.doc")
                 }
+                .fontWeight(.semibold)
                 .disabled(text.isEmpty)
             }
         }
+        .sensoryFeedback(.success, trigger: didCopy)
+        .onChange(of: text) { _, _ in didCopy = false }
     }
 }
-

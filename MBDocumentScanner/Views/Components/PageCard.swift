@@ -5,31 +5,38 @@ struct PageCard: View {
     let pageNumber: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
             GeometryReader { proxy in
                 Image(uiImage: page.image)
                     .resizable()
                     .scaledToFit()
+                    .padding(8)
                     .frame(width: proxy.size.width, height: proxy.size.height)
-                    .background(Color.white)
+                    .background(ScanTheme.background)
             }
-            .aspectRatio(0.74, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-            }
-            .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
+            .aspectRatio(0.78, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-            HStack(alignment: .firstTextBaseline) {
-                Text("Page \(pageNumber)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                Spacer(minLength: 4)
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Page \(pageNumber)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(ScanTheme.ink)
+                    Spacer(minLength: 4)
+                    Image(systemName: "arrow.up.right")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(ScanTheme.secondaryInk)
+                        .accessibilityHidden(true)
+                }
+
                 QualityBadge(quality: page.quality, compact: true)
             }
+            .padding(.horizontal, 4)
+            .padding(.bottom, 4)
         }
+        .padding(10)
+        .scanCard(cornerRadius: 22)
         .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens page details and editing tools")
     }
 }
-

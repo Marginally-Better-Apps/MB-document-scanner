@@ -18,7 +18,7 @@ struct CropPageView: View {
                 let imageRect = aspectFitRect(for: image.size, in: geometry.size)
 
                 ZStack {
-                    Color.black.ignoresSafeArea()
+                    Color(red: 0.075, green: 0.11, blue: 0.105).ignoresSafeArea()
 
                     Image(uiImage: image)
                         .resizable()
@@ -26,11 +26,23 @@ struct CropPageView: View {
                         .frame(width: imageRect.width, height: imageRect.height)
                         .position(x: imageRect.midX, y: imageRect.midY)
 
+                    CropExclusionOverlay(
+                        image: image,
+                        imageRect: imageRect,
+                        cropPath: currentCropPath(in: imageRect)
+                    )
+
                     switch cropMode {
                     case .fourCorners:
-                        PerspectiveCropOverlay(quadrilateral: $quadrilateral, imageRect: imageRect)
+                        PerspectiveCropOverlay(
+                            quadrilateral: $quadrilateral,
+                            imageRect: imageRect
+                        )
                     case .uniform:
-                        UniformCropOverlay(cropRect: $uniformRect, imageRect: imageRect)
+                        UniformCropOverlay(
+                            cropRect: $uniformRect,
+                            imageRect: imageRect
+                        )
                     }
 
                     if isApplying {
@@ -45,8 +57,7 @@ struct CropPageView: View {
             }
             .navigationTitle("Crop Page")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.black, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarBackground(ScanTheme.surface, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
@@ -62,10 +73,11 @@ struct CropPageView: View {
                     .disabled(isApplying || isCurrentCropFullImage)
                 }
             }
-            .safeAreaInset(edge: .bottom) {
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 applyBar
             }
         }
+        .tint(ScanTheme.accent)
         .interactiveDismissDisabled(isApplying)
         .onChange(of: cropMode) { oldMode, newMode in
             convertCrop(from: oldMode, to: newMode)
@@ -82,32 +94,51 @@ struct CropPageView: View {
     }
 
     private var applyBar: some View {
-        VStack(spacing: 10) {
-            Picker("Crop Mode", selection: $cropMode) {
+        VStack(spacing: 16) {
+            HStack(spacing: 6) {
                 ForEach(CropMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
+                    Button {
+                        withAnimation(.snappy(duration: 0.2)) {
+                            cropMode = mode
+                        }
+                    } label: {
+                        Label(mode.title, systemImage: mode.systemImage)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(cropMode == mode ? ScanTheme.accent : ScanTheme.secondaryInk)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(
+                                cropMode == mode ? ScanTheme.surface : Color.clear,
+                                in: RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(cropMode == mode ? .isSelected : [])
                 }
             }
-            .pickerStyle(.segmented)
+            .padding(5)
+            .background(ScanTheme.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .disabled(isApplying)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Crop mode")
 
             Text(cropMode.instruction)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .font(.subheadline)
+                .foregroundStyle(ScanTheme.secondaryInk)
+                .multilineTextAlignment(.center)
 
             Button(action: applyCrop) {
                 Label("Apply Crop", systemImage: "crop")
-                    .font(.headline)
                     .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(ScanPrimaryButtonStyle())
             .disabled(isApplying)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
+        .frame(maxWidth: 640)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
         .padding(.bottom, 8)
-        .background(.bar)
+        .frame(maxWidth: .infinity)
+        .background(ScanTheme.surface)
     }
 
     private func applyCrop() {
@@ -201,6 +232,33 @@ struct CropPageView: View {
             height: fittedSize.height
         )
     }
+
+    private func currentCropPath(in imageRect: CGRect) -> Path {
+        switch cropMode {
+        case .fourCorners:
+            return Path { path in
+                path.move(to: viewPoint(for: quadrilateral.topLeft, in: imageRect))
+                path.addLine(to: viewPoint(for: quadrilateral.topRight, in: imageRect))
+                path.addLine(to: viewPoint(for: quadrilateral.bottomRight, in: imageRect))
+                path.addLine(to: viewPoint(for: quadrilateral.bottomLeft, in: imageRect))
+                path.closeSubpath()
+            }
+        case .uniform:
+            return Path(CGRect(
+                x: imageRect.minX + uniformRect.minX * imageRect.width,
+                y: imageRect.minY + uniformRect.minY * imageRect.height,
+                width: uniformRect.width * imageRect.width,
+                height: uniformRect.height * imageRect.height
+            ))
+        }
+    }
+
+    private func viewPoint(for normalizedPoint: CGPoint, in imageRect: CGRect) -> CGPoint {
+        CGPoint(
+            x: imageRect.minX + normalizedPoint.x * imageRect.width,
+            y: imageRect.minY + normalizedPoint.y * imageRect.height
+        )
+    }
 }
 
 private enum CropMode: String, CaseIterable, Identifiable {
@@ -213,6 +271,13 @@ private enum CropMode: String, CaseIterable, Identifiable {
         switch self {
         case .fourCorners: "4 Corners"
         case .uniform: "Rectangle"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .fourCorners: "viewfinder"
+        case .uniform: "rectangle.dashed"
         }
     }
 
@@ -230,7 +295,6 @@ private struct PerspectiveCropOverlay: View {
 
     var body: some View {
         ZStack {
-            outsideMask
             cropOutline
             handle(for: .topLeft)
             handle(for: .topRight)
@@ -239,24 +303,13 @@ private struct PerspectiveCropOverlay: View {
         }
     }
 
-    private var outsideMask: some View {
-        Canvas { context, size in
-            var path = Path(CGRect(origin: .zero, size: size))
-            path.move(to: viewPoint(for: quadrilateral.topLeft))
-            path.addLine(to: viewPoint(for: quadrilateral.topRight))
-            path.addLine(to: viewPoint(for: quadrilateral.bottomRight))
-            path.addLine(to: viewPoint(for: quadrilateral.bottomLeft))
-            path.closeSubpath()
-            context.fill(
-                path,
-                with: .color(.black.opacity(0.55)),
-                style: FillStyle(eoFill: true)
-            )
-        }
-        .allowsHitTesting(false)
+    private var cropOutline: some View {
+        cropPath
+            .stroke(ScanTheme.accent, style: StrokeStyle(lineWidth: 3, lineJoin: .round))
+            .allowsHitTesting(false)
     }
 
-    private var cropOutline: some View {
+    private var cropPath: Path {
         Path { path in
             path.move(to: viewPoint(for: quadrilateral.topLeft))
             path.addLine(to: viewPoint(for: quadrilateral.topRight))
@@ -264,8 +317,6 @@ private struct PerspectiveCropOverlay: View {
             path.addLine(to: viewPoint(for: quadrilateral.bottomLeft))
             path.closeSubpath()
         }
-        .stroke(.blue, style: StrokeStyle(lineWidth: 3, lineJoin: .round))
-        .allowsHitTesting(false)
     }
 
     private func handle(for corner: CropCorner) -> some View {
@@ -273,7 +324,7 @@ private struct PerspectiveCropOverlay: View {
             .fill(.white)
             .frame(width: 30, height: 30)
             .overlay {
-                Circle().stroke(.blue, lineWidth: 5)
+                Circle().stroke(ScanTheme.accent, lineWidth: 5)
             }
             .shadow(color: .black.opacity(0.35), radius: 3, y: 1)
             .position(viewPoint(for: point(for: corner)))
@@ -347,7 +398,6 @@ private struct UniformCropOverlay: View {
 
     var body: some View {
         ZStack {
-            outsideMask
             moveArea
             ruleOfThirdsGrid
             cropOutline
@@ -356,19 +406,6 @@ private struct UniformCropOverlay: View {
                 resizeHandle(handle)
             }
         }
-    }
-
-    private var outsideMask: some View {
-        Canvas { context, size in
-            var path = Path(CGRect(origin: .zero, size: size))
-            path.addRect(viewCropRect)
-            context.fill(
-                path,
-                with: .color(.black.opacity(0.55)),
-                style: FillStyle(eoFill: true)
-            )
-        }
-        .allowsHitTesting(false)
     }
 
     private var moveArea: some View {
@@ -405,7 +442,7 @@ private struct UniformCropOverlay: View {
 
     private var cropOutline: some View {
         Path(viewCropRect)
-            .stroke(.blue, style: StrokeStyle(lineWidth: 3, lineJoin: .round))
+            .stroke(ScanTheme.accent, style: StrokeStyle(lineWidth: 3, lineJoin: .round))
             .allowsHitTesting(false)
     }
 
@@ -430,7 +467,7 @@ private struct UniformCropOverlay: View {
             .fill(.white)
             .frame(width: handle.isCorner ? 28 : 24, height: handle.isCorner ? 28 : 24)
             .overlay {
-                Circle().stroke(.blue, lineWidth: 4)
+                Circle().stroke(ScanTheme.accent, lineWidth: 4)
             }
             .shadow(color: .black.opacity(0.35), radius: 3, y: 1)
             .position(viewPoint(for: normalizedPoint(for: handle)))
@@ -515,6 +552,39 @@ private struct UniformCropOverlay: View {
         }
 
         cropRect = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+}
+
+private struct CropExclusionOverlay: View {
+    let image: UIImage
+    let imageRect: CGRect
+    let cropPath: Path
+
+    var body: some View {
+        ZStack {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: imageRect.width, height: imageRect.height)
+                .position(x: imageRect.midX, y: imageRect.midY)
+                .saturation(0)
+                .contrast(0.8)
+                .brightness(-0.18)
+                .mask(exclusionMask)
+
+            Color.black.opacity(0.28)
+                .mask(exclusionMask)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var exclusionMask: some View {
+        Canvas { context, _ in
+            context.fill(Path(imageRect), with: .color(.white))
+            context.blendMode = .destinationOut
+            context.fill(cropPath, with: .color(.white))
+        }
     }
 }
 

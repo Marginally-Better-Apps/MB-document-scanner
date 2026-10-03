@@ -6,9 +6,12 @@ import VisionKit
 struct DocumentContentsView: View {
     @ObservedObject var library: ScanLibrary
     @ObservedObject var session: ScanSession
+    @EnvironmentObject private var settings: AppSettings
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var isScannerPresented = false
+    @State private var isPhotoImporterPresented = false
     @State private var isPDFImporterPresented = false
     @State private var isExportPresented = false
     @State private var isRenamePresented = false
@@ -18,9 +21,9 @@ struct DocumentContentsView: View {
     @State private var draggedPageID: UUID?
     @State private var pendingPageDeletion: PendingPageDeletion?
 
-    private let gridColumns = [
-        GridItem(.adaptive(minimum: 148, maximum: 220), spacing: 16)
-    ]
+    private var gridColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: dynamicTypeSize.isAccessibilitySize ? 260 : 148, maximum: 320), spacing: 16)]
+    }
 
     var body: some View {
         Group {
@@ -34,7 +37,9 @@ struct DocumentContentsView: View {
                 pagesGrid
             }
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(ScanTheme.background)
+        .tint(ScanTheme.accent)
         .navigationTitle(session.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
@@ -54,10 +59,23 @@ struct DocumentContentsView: View {
             .ignoresSafeArea()
         }
         .sheet(isPresented: $isExportPresented) {
-            ExportOptionsView(session: session)
-                .presentationDetents([.medium, .large])
+            ExportOptionsView(
+                session: session,
+                format: settings.exportFormat,
+                compression: settings.compression
+            )
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .photoLibraryImporter(
+            isPresented: $isPhotoImporterPresented,
+            onImport: { images in
+                session.add(images)
+            },
+            onError: { error in
+                alertMessage = error.localizedDescription
+            }
+        )
         .pdfPageImporter(
             isPresented: $isPDFImporterPresented,
             onImport: { images, _ in
@@ -99,10 +117,9 @@ struct DocumentContentsView: View {
         } message: {
             Text("This page and its recognized text will be removed from the scan.")
         }
-        .confirmationDialog(
+        .alert(
             "Delete \(session.title)?",
-            isPresented: $isDeletePresented,
-            titleVisibility: .visible
+            isPresented: $isDeletePresented
         ) {
             Button("Delete Scan", role: .destructive) {
                 library.delete(documentID: session.id)
@@ -116,84 +133,125 @@ struct DocumentContentsView: View {
 
     private var pagesGrid: some View {
         ScrollView {
-            LazyVGrid(columns: gridColumns, spacing: 20) {
-                ForEach(Array(session.pages.enumerated()), id: \.element.id) { index, page in
-                    ZStack(alignment: .topLeading) {
-                        NavigationLink {
-                            PageDetailView(session: session, pageID: page.id)
-                        } label: {
-                            PageCard(page: page, pageNumber: index + 1)
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            pendingPageDeletion = PendingPageDeletion(
-                                pageID: page.id,
-                                pageNumber: index + 1
-                            )
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 21, weight: .semibold))
-                                .symbolRenderingMode(.palette)
-                                .foregroundStyle(.white, .red)
-                                .frame(width: 44, height: 44)
-                                .contentShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Delete Page \(index + 1)")
-                        .offset(x: -22, y: -22)
-                    }
-                    .opacity(draggedPageID == page.id ? 0.65 : 1)
-                    .onDrag {
-                        draggedPageID = page.id
-                        let feedback = UIImpactFeedbackGenerator(style: .light)
-                        feedback.prepare()
-                        feedback.impactOccurred()
-                        return NSItemProvider(object: page.id.uuidString as NSString)
-                    }
-                    .onDrop(
-                        of: [UTType.plainText],
-                        delegate: PageReorderDropDelegate(
-                            targetPageID: page.id,
-                            session: session,
-                            draggedPageID: $draggedPageID
-                        )
+            VStack(alignment: .leading, spacing: 22) {
+                HStack(alignment: .top, spacing: 16) {
+                    ScanSectionHeading(
+                        title: "Pages",
+                        detail: session.pages.count > 1 ? "Tap to review. Hold and drag to reorder." : "Tap to review or edit your page."
                     )
+
+                    Spacer(minLength: 0)
+
+                    Text("\(session.pages.count)")
+                        .font(.headline.monospacedDigit())
+                        .foregroundStyle(ScanTheme.accent)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .background(ScanTheme.accentSoft, in: Capsule())
+                        .accessibilityLabel("\(session.pages.count) \(session.pages.count == 1 ? "page" : "pages")")
+                }
+
+                LazyVGrid(columns: gridColumns, spacing: 18) {
+                    ForEach(Array(session.pages.enumerated()), id: \.element.id) { index, page in
+                        ZStack(alignment: .topTrailing) {
+                            NavigationLink {
+                                PageDetailView(session: session, pageID: page.id)
+                            } label: {
+                                PageCard(page: page, pageNumber: index + 1)
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                pendingPageDeletion = PendingPageDeletion(
+                                    pageID: page.id,
+                                    pageNumber: index + 1
+                                )
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(ScanTheme.secondaryInk)
+                                    .frame(width: 28, height: 28)
+                                    .background(ScanTheme.surface.opacity(0.96), in: Circle())
+                                    .overlay {
+                                        Circle().stroke(ScanTheme.border, lineWidth: 1)
+                                    }
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Delete Page \(index + 1)")
+                            .padding(6)
+                        }
+                        .opacity(draggedPageID == page.id ? 0.65 : 1)
+                        .onDrag {
+                            draggedPageID = page.id
+                            let feedback = UIImpactFeedbackGenerator(style: .light)
+                            feedback.prepare()
+                            feedback.impactOccurred()
+                            return NSItemProvider(object: page.id.uuidString as NSString)
+                        }
+                        .onDrop(
+                            of: [UTType.plainText],
+                            delegate: PageReorderDropDelegate(
+                                targetPageID: page.id,
+                                session: session,
+                                draggedPageID: $draggedPageID
+                            )
+                        )
+                    }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 96)
+            .padding(20)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
         }
     }
 
     private var actionBar: some View {
-        HStack(spacing: 12) {
-            AddPagesMenu(
-                onScan: beginScanning,
-                onImportPDF: { isPDFImporterPresented = true },
-                onPaste: pastePages
-            ) {
-                Label("Add Pages", systemImage: "doc.viewfinder")
-                    .frame(maxWidth: .infinity)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(spacing: 12) {
+                    addPagesButton
+                    exportButton
+                }
+            } else {
+                HStack(spacing: 12) {
+                    addPagesButton
+                    exportButton
+                }
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-
-            Button {
-                isExportPresented = true
-            } label: {
-                Label("Export", systemImage: "square.and.arrow.up")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(session.isEmpty)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-        .padding(.bottom, 8)
-        .background(.bar)
+        .padding(.horizontal, 20)
+        .padding(.top, 14)
+        .padding(.bottom, 10)
+        .background(ScanTheme.background)
+        .overlay(alignment: .top) {
+            Rectangle().fill(ScanTheme.border).frame(height: 1)
+        }
+    }
+
+    private var addPagesButton: some View {
+        AddPagesMenu(
+            onScan: beginScanning,
+            onImportPhotos: { isPhotoImporterPresented = true },
+            onImportPDF: { isPDFImporterPresented = true },
+            onPaste: pastePages
+        ) {
+            Label("Add pages", systemImage: "plus")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(ScanSecondaryButtonStyle())
+    }
+
+    private var exportButton: some View {
+        Button {
+            isExportPresented = true
+        } label: {
+            Label("Export", systemImage: "square.and.arrow.up")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(ScanPrimaryButtonStyle())
+        .disabled(session.isEmpty)
     }
 
     @ToolbarContentBuilder
@@ -230,7 +288,7 @@ struct DocumentContentsView: View {
 
     private func beginScanning() {
         guard VNDocumentCameraViewController.isSupported else {
-            alertMessage = "Document scanning requires a supported iPhone camera."
+            alertMessage = "Document scanning requires a supported device camera."
             return
         }
         isScannerPresented = true

@@ -80,7 +80,8 @@ final class ScanDocumentStore {
                 id: page.id,
                 imageName: imageName,
                 recognizedText: page.recognizedText,
-                quality: page.quality
+                quality: page.quality,
+                analysisVersion: DocumentAnalyzer.analysisVersion
             ))
         }
 
@@ -126,7 +127,7 @@ final class ScanDocumentStore {
                 id: storedPage.id,
                 image: image,
                 recognizedText: storedPage.recognizedText,
-                quality: storedPage.quality
+                quality: storedPage.analysisVersion == DocumentAnalyzer.analysisVersion ? storedPage.quality : .analyzing
             )
         }
 
@@ -157,4 +158,5 @@ private struct StoredPage: Codable {
     let imageName: String
     let recognizedText: String
     let quality: ScanQualityState
+    let analysisVersion: Int?
 }

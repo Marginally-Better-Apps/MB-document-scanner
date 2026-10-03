@@ -7,41 +7,58 @@ struct PageDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isDeleteConfirmationPresented = false
     @State private var cropRequest: CropRequest?
+    @State private var editRequest: EditRequest?
 
     var body: some View {
         Group {
             if let page = session.page(withID: pageID) {
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 18) {
                         pagePreview(page)
 
-                        QualitySummaryCard(quality: page.quality)
+                        QualitySummaryCard(quality: page.quality) { checkID, dismissed in
+                            session.setWarningDismissed(dismissed, checkID: checkID, pageID: pageID)
+                        }
 
                         recognizedTextCard(page)
                     }
-                    .padding(16)
+                    .padding(20)
                     .padding(.bottom, 20)
                 }
-                .background(Color(uiColor: .systemGroupedBackground))
+                .background(ScanTheme.background)
+                .tint(ScanTheme.accent)
                 .navigationTitle("Page \(session.pageNumber(for: pageID) ?? 1)")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItemGroup(placement: .topBarTrailing) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            cropRequest = CropRequest(image: page.image)
+                            editRequest = EditRequest(
+                                image: page.image,
+                                pageNumber: session.pageNumber(for: pageID) ?? 1
+                            )
                         } label: {
-                            Image(systemName: "crop")
+                            Label("Edit", systemImage: "square.and.pencil")
                         }
-                        .accessibilityLabel("Crop page")
+                        .fontWeight(.semibold)
+                        .accessibilityLabel("Edit page")
+                    }
 
-                        Button {
-                            session.rotate(pageID: pageID)
-                        } label: {
-                            Image(systemName: "rotate.right")
-                        }
-                        .accessibilityLabel("Rotate page")
-
+                    ToolbarItem(placement: .topBarTrailing) {
                         Menu {
+                            Button {
+                                cropRequest = CropRequest(image: page.image)
+                            } label: {
+                                Label("Crop Page", systemImage: "crop")
+                            }
+
+                            Button {
+                                session.rotate(pageID: pageID)
+                            } label: {
+                                Label("Rotate Right", systemImage: "rotate.right")
+                            }
+
+                            Divider()
+
                             Button(role: .destructive) {
                                 isDeleteConfirmationPresented = true
                             } label: {
@@ -57,10 +74,9 @@ struct PageDetailView: View {
                 ContentUnavailableView("Page Removed", systemImage: "doc.badge.minus")
             }
         }
-        .confirmationDialog(
+        .alert(
             "Delete this page?",
-            isPresented: $isDeleteConfirmationPresented,
-            titleVisibility: .visible
+            isPresented: $isDeleteConfirmationPresented
         ) {
             Button("Delete Page", role: .destructive) {
                 session.remove(pageID: pageID)
@@ -80,20 +96,47 @@ struct PageDetailView: View {
                 }
             )
         }
+        .fullScreenCover(item: $editRequest) { request in
+            PageEditorView(
+                image: request.image,
+                pageNumber: request.pageNumber,
+                onCancel: { editRequest = nil },
+                onComplete: { editedImage in
+                    session.applyEdit(pageID: pageID, image: editedImage)
+                    editRequest = nil
+                }
+            )
+        }
     }
 
     private func pagePreview(_ page: ScannedPage) -> some View {
-        Image(uiImage: page.image)
-            .resizable()
-            .scaledToFit()
-            .frame(maxWidth: .infinity)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("PAGE \(session.pageNumber(for: pageID) ?? 1) OF \(session.pages.count)", systemImage: "doc")
+                    .font(.caption2.weight(.semibold))
+                    .tracking(1)
+                    .foregroundStyle(ScanTheme.secondaryInk)
+                Spacer()
+                Text("Preview")
+                    .font(.caption)
+                    .foregroundStyle(ScanTheme.secondaryInk)
             }
-            .shadow(color: .black.opacity(0.10), radius: 12, y: 4)
+            .padding(.horizontal, 4)
+
+            Image(uiImage: page.image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(ScanTheme.border, lineWidth: 1)
+                }
+                .accessibilityLabel("Scanned page \(session.pageNumber(for: pageID) ?? 1)")
+        }
+        .padding(14)
+        .scanCard()
     }
 
     private func recognizedTextCard(_ page: ScannedPage) -> some View {
@@ -103,26 +146,28 @@ struct PageDetailView: View {
             HStack(spacing: 14) {
                 Image(systemName: "text.viewfinder")
                     .font(.title3)
-                    .foregroundStyle(.blue)
-                    .frame(width: 32)
+                    .foregroundStyle(ScanTheme.accent)
+                    .frame(width: 46, height: 46)
+                    .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 15))
+                    .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Recognized Text")
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Recognized text")
                         .font(.headline)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(ScanTheme.ink)
                     Text(textSummary(for: page))
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(ScanTheme.secondaryInk)
                         .lineLimit(2)
                 }
-                Spacer()
+                Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(ScanTheme.secondaryInk)
+                    .accessibilityHidden(true)
             }
-            .padding(16)
-            .background(Color(uiColor: .secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(18)
+            .scanCard()
         }
         .buttonStyle(.plain)
         .disabled(page.quality == .analyzing)
@@ -138,4 +183,10 @@ struct PageDetailView: View {
 private struct CropRequest: Identifiable {
     let id = UUID()
     let image: UIImage
+}
+
+private struct EditRequest: Identifiable {
+    let id = UUID()
+    let image: UIImage
+    let pageNumber: Int
 }
