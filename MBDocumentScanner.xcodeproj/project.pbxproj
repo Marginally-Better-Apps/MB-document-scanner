@@ -266,6 +266,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					5CAD6CD7117D4C357D0335FE = {
+						DevelopmentTeam = KPAFTUKTFY;
+					};
 				};
 			};
 			buildConfigurationList = F9857380CA012B5B2A4FD67D /* Build configuration list for PBXProject "MBDocumentScanner" */;
@@ -423,6 +426,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = KPAFTUKTFY;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "MB Document Scanner";
 				INFOPLIST_KEY_NSCameraUsageDescription = "MB Document Scanner uses the camera only to scan documents on this device.";
@@ -540,6 +544,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = KPAFTUKTFY;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "MB Document Scanner";
 				INFOPLIST_KEY_NSCameraUsageDescription = "MB Document Scanner uses the camera only to scan documents on this device.";

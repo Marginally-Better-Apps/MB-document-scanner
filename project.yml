@@ -18,6 +18,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.marginallybetter.docscanner
+        DEVELOPMENT_TEAM: KPAFTUKTFY
         PRODUCT_NAME: MBDocumentScanner
         PRODUCT_MODULE_NAME: MBDocumentScanner
         TARGETED_DEVICE_FAMILY: "1"
