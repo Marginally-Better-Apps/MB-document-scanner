@@ -8,207 +8,104 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Appearance") {
-                Picker(selection: $settings.appearance) {
+            Section {
+                Picker("Appearance", selection: $settings.appearance) {
                     ForEach(AppAppearance.allCases) { appearance in
                         Text(appearance.title).tag(appearance)
                     }
-                } label: {
-                    SettingsLabel("Theme", systemImage: "circle.lefthalf.filled")
                 }
-            }
-            .listRowBackground(ScanTheme.surface)
 
-            Section("Library") {
-                Picker(selection: $settings.librarySortOrder) {
+                Picker("Sort Scans By", selection: $settings.librarySortOrder) {
                     ForEach(LibrarySortOrder.allCases) { order in
                         Text(order.title).tag(order)
                     }
-                } label: {
-                    SettingsLabel("Sort scans", systemImage: "arrow.up.arrow.down")
                 }
             }
-            .listRowBackground(ScanTheme.surface)
 
             Section {
-                Picker(selection: $settings.exportFormat) {
+                Picker("Share As", selection: $settings.exportFormat) {
                     ForEach(ExportFormat.allCases) { format in
                         Text(format.title).tag(format)
                     }
-                } label: {
-                    SettingsLabel("File format", systemImage: "doc")
                 }
 
-                Picker(selection: $settings.compression) {
+                Picker("File Size", selection: $settings.compression) {
                     ForEach(CompressionPreset.allCases) { preset in
                         Text(preset.title).tag(preset)
                     }
-                } label: {
-                    SettingsLabel("Quality", systemImage: "slider.horizontal.3")
                 }
             } header: {
-                Text("Export defaults")
-            }
-            .listRowBackground(ScanTheme.surface)
-
-            Section {
-                Toggle(isOn: $settings.usesLanguageCorrection) {
-                    SettingsLabel("Language correction", systemImage: "text.badge.checkmark")
-                }
-            } header: {
-                Text("Text recognition")
+                Text("Sharing")
             } footer: {
-                Text("Uses language context to improve recognized text. Turn off for codes or unusual spellings. Applies when pages are added or edited; existing text stays as it is.")
+                Text("Used when you tap Share on a scan.")
             }
-            .listRowBackground(ScanTheme.surface)
 
             Section {
-                Label {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("On your device")
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(ScanTheme.ink)
-                        Text("Scans and text recognition stay on your device. No account, ads, or analytics. You choose what to share when you export.")
-                            .font(.subheadline)
-                            .foregroundStyle(ScanTheme.secondaryInk)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                } icon: {
-                    settingsIcon("lock.shield")
-                }
-                .padding(.vertical, 6)
+                Toggle("Auto-Correct Scanned Text", isOn: $settings.usesLanguageCorrection)
+            } footer: {
+                Text("Fixes small reading mistakes in scanned words. Turn this off for codes and serial numbers.")
+            }
 
+            Section {
                 Button {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         openURL(url)
                     }
                 } label: {
-                    externalLabel("Device permissions", systemImage: "hand.raised")
+                    externalLabel("Camera & Photos Access")
                 }
             } header: {
-                Text("Privacy & permissions")
+                Text("Privacy")
+            } footer: {
+                Text("Your scans stay on this device. Nothing is uploaded unless you share it.")
             }
-            .listRowBackground(ScanTheme.surface)
 
             Section {
-                Button {
+                Link(destination: AppInformation.githubURL) {
+                    externalLabel("Source Code")
+                }
+
+                Link(destination: AppInformation.issuesURL) {
+                    externalLabel("Report a Problem")
+                }
+
+                NavigationLink("License") {
+                    LicenseView()
+                }
+            } header: {
+                Text("About")
+            } footer: {
+                Text("MB Document Scanner, \(AppInformation.version)")
+            }
+
+            Section {
+                Button("Reset Settings", role: .destructive) {
                     isResetPresented = true
-                } label: {
-                    SettingsLabel("Reset settings", systemImage: "arrow.counterclockwise")
                 }
             }
-            .listRowBackground(ScanTheme.surface)
-
-            aboutSection
         }
         .pickerStyle(.navigationLink)
-        .foregroundStyle(ScanTheme.ink)
-        .scrollContentBackground(.hidden)
-        .background(ScanTheme.background)
         .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(ScanTheme.background, for: .navigationBar)
-        .alert("Reset settings?", isPresented: $isResetPresented) {
-            Button("Reset Settings", role: .destructive) { settings.reset() }
+        .navigationBarTitleDisplayMode(.large)
+        .alert("Reset Settings?", isPresented: $isResetPresented) {
+            Button("Reset", role: .destructive) { settings.reset() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Appearance, sorting, export defaults, and language correction will return to their original values. Your scans will not be changed.")
+            Text("Your scans won’t be changed.")
         }
     }
 
-    private var aboutSection: some View {
-        Section {
-            VStack(spacing: 12) {
-                Image(systemName: "doc.viewfinder")
-                    .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(ScanTheme.accent)
-                    .frame(width: 72, height: 72)
-                    .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 20))
-                    .accessibilityHidden(true)
-
-                VStack(spacing: 5) {
-                    Text("MB Document Scanner")
-                        .font(.system(.title3, design: .rounded, weight: .bold))
-                        .foregroundStyle(ScanTheme.ink)
-                    Text("Marginally Better Document Scanner")
-                        .font(.subheadline)
-                        .foregroundStyle(ScanTheme.secondaryInk)
-                }
-
-                Text(AppInformation.version)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(ScanTheme.secondaryInk)
-            }
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
-            .listRowSeparator(.hidden)
-
-            Link(destination: AppInformation.githubURL) {
-                externalLabel("View on GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
-            }
-
-            Link(destination: AppInformation.issuesURL) {
-                externalLabel("Report an issue", systemImage: "bubble.left.and.bubble.right")
-            }
-
-            NavigationLink {
-                LicenseView()
-            } label: {
-                SettingsLabel("MIT License", systemImage: "doc.plaintext")
-            }
-        } header: {
-            Text("About")
-        } footer: {
-            Text("Free and open source. Made for iPhone and iPad.")
-                .frame(maxWidth: .infinity)
-                .multilineTextAlignment(.center)
-                .padding(.vertical, 8)
-        }
-        .listRowBackground(ScanTheme.surface)
-    }
-
-    private func externalLabel(_ title: String, systemImage: String) -> some View {
+    private func externalLabel(_ title: String) -> some View {
         HStack {
-            SettingsLabel(title, systemImage: systemImage)
+            Text(title)
+                .foregroundStyle(ScanTheme.ink)
             Spacer(minLength: 8)
             Image(systemName: "arrow.up.right")
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(ScanTheme.secondaryInk)
+                .foregroundStyle(ScanTheme.tertiaryInk)
                 .accessibilityHidden(true)
         }
     }
-}
-
-private struct SettingsLabel: View {
-    let title: String
-    let systemImage: String
-
-    init(_ title: String, systemImage: String) {
-        self.title = title
-        self.systemImage = systemImage
-    }
-
-    var body: some View {
-        Label {
-            Text(title)
-                .foregroundStyle(ScanTheme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            settingsIcon(systemImage)
-        }
-        .padding(.vertical, 3)
-    }
-}
-
-private func settingsIcon(_ systemImage: String) -> some View {
-    Image(systemName: systemImage)
-        .font(.system(size: 15, weight: .medium))
-        .foregroundStyle(ScanTheme.accent)
-        .frame(width: 30, height: 30)
-        .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 8))
-        .accessibilityHidden(true)
 }
 
 private enum AppInformation {
@@ -233,7 +130,7 @@ private struct LicenseView: View {
                 .padding(24)
         }
         .background(ScanTheme.background)
-        .navigationTitle("MIT License")
+        .navigationTitle("License")
         .navigationBarTitleDisplayMode(.inline)
     }
 

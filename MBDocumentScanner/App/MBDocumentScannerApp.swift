@@ -8,7 +8,6 @@ struct MBDocumentScannerApp: App {
         WindowGroup {
             RootView(settings: settings)
                 .environmentObject(settings)
-                .tint(ScanTheme.accent)
                 .preferredColorScheme(settings.appearance.colorScheme)
         }
     }

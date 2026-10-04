@@ -1,16 +1,23 @@
 import SwiftUI
 import UIKit
 
-/// A quiet canvas and one expressive accent, shared by every screen.
+/// System colors only. The app follows the system accent (blue) the way Notes,
+/// Files and Settings do, and keeps color for what needs attention.
 enum ScanTheme {
-    static let accent = adaptive(light: 0x087F72, dark: 0x78D6C2)
-    static let accentSoft = adaptive(light: 0xE3F2ED, dark: 0x203A34)
-    static let background = adaptive(light: 0xF5F7F4, dark: 0x111A17)
-    static let surface = adaptive(light: 0xFFFFFF, dark: 0x1B2722)
-    static let ink = adaptive(light: 0x1B302A, dark: 0xEEF5F0)
-    static let secondaryInk = adaptive(light: 0x606F68, dark: 0xABBDB2)
-    static let border = adaptive(light: 0xE3EAE4, dark: 0x33453B)
-    static let primaryFill = Color(red: 8 / 255, green: 127 / 255, blue: 114 / 255)
+    static let accent = Color.accentColor
+    static let accentSoft = Color.accentColor.opacity(0.14)
+    static let background = Color(uiColor: .systemGroupedBackground)
+    static let surface = Color(uiColor: .secondarySystemGroupedBackground)
+    static let ink = Color(uiColor: .label)
+    static let secondaryInk = Color(uiColor: .secondaryLabel)
+    static let tertiaryInk = Color(uiColor: .tertiaryLabel)
+    static let border = Color(uiColor: .separator)
+    static let fill = Color(uiColor: .tertiarySystemFill)
+    /// Orange for symbols, and a deeper orange for text so it stays readable on white.
+    static let warning = Color.orange
+    static let warningText = adaptive(light: 0xB25000, dark: 0xFF9F0A)
+
+    static let cornerRadius: CGFloat = 26
 
     private static func adaptive(light: UInt32, dark: UInt32) -> Color {
         Color(uiColor: UIColor { traits in
@@ -26,68 +33,109 @@ enum ScanTheme {
 }
 
 extension View {
-    func scanCard(cornerRadius: CGFloat = 24) -> some View {
+    func scanCard(cornerRadius: CGFloat = ScanTheme.cornerRadius) -> some View {
         background(ScanTheme.surface, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(ScanTheme.border.opacity(0.7), lineWidth: 1)
-                    .allowsHitTesting(false)
-            }
+    }
+
+    /// The one prominent action on a screen: Liquid Glass on iOS 26, a filled button before it.
+    @ViewBuilder
+    func prominentActionStyle() -> some View {
+        if #available(iOS 26.0, *) {
+            buttonStyle(.glassProminent)
+        } else {
+            buttonStyle(.borderedProminent)
+        }
+    }
+
+    /// Secondary actions beside a prominent one.
+    @ViewBuilder
+    func secondaryActionStyle() -> some View {
+        if #available(iOS 26.0, *) {
+            buttonStyle(.glass)
+        } else {
+            buttonStyle(.bordered)
+        }
+    }
+
+    /// The document subtitle under an inline title on iOS 26.
+    @ViewBuilder
+    func navigationSubtitleIfAvailable(_ subtitle: String) -> some View {
+        if #available(iOS 26.0, *) {
+            navigationSubtitle(subtitle)
+        } else {
+            self
+        }
     }
 }
 
-struct ScanPrimaryButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.body.weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 17)
-            .frame(minHeight: 54)
-            .background(ScanTheme.primaryFill, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: configuration.isPressed)
-    }
-}
-
-struct ScanSecondaryButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.body.weight(.semibold))
-            .foregroundStyle(ScanTheme.accent)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 17)
-            .frame(minHeight: 54)
-            .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.45)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: configuration.isPressed)
-    }
-}
-
-struct ScanSectionHeading: View {
+/// An icon with its word beside it. Toolbars on iOS 26 reduce a `Label` to its icon;
+/// the main actions keep their words so nobody has to guess.
+struct ActionLabel: View {
     let title: String
-    var detail: String? = nil
+    let systemImage: String
+
+    init(_ title: String, systemImage: String) {
+        self.title = title
+        self.systemImage = systemImage
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+                .accessibilityHidden(true)
             Text(title)
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(ScanTheme.ink)
-                .accessibilityAddTraits(.isHeader)
-            if let detail {
-                Text(detail)
-                    .font(.subheadline)
-                    .foregroundStyle(ScanTheme.secondaryInk)
-            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .font(.headline)
+        .padding(.horizontal, 4)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A scanned page presented as paper: white, hairline edge, soft lift.
+struct PaperImage: View {
+    let image: UIImage
+    var cornerRadius: CGFloat = 4
+
+    var body: some View {
+        Image(uiImage: image)
+            .resizable()
+            .scaledToFit()
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.08), lineWidth: 0.5)
+            }
+            .shadow(color: .black.opacity(0.10), radius: 6, y: 2)
+    }
+}
+
+extension ScanQualityState {
+    var tint: Color {
+        switch self {
+        case .analyzing: ScanTheme.secondaryInk
+        case .ready where needsReview: ScanTheme.warning
+        case .ready: ScanTheme.secondaryInk
+        }
+    }
+}
+
+extension QualityCheck {
+    /// One plain sentence for a warning, phrased for anyone.
+    var plainHeadline: String {
+        switch id {
+        case "sharpness": "This page looks blurry."
+        case "contrast": "This page looks faint."
+        case "text": "Some words may be hard to read."
+        case "resolution": "This page may look blurry when printed."
+        case "image": "This page couldn’t be read."
+        default: title
+        }
+    }
+}
+
+extension Int {
+    var pageCountText: String {
+        "\(self) \(self == 1 ? "page" : "pages")"
     }
 }
