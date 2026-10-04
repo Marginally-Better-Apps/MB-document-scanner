@@ -10,6 +10,7 @@ struct RootView: View {
     @ObservedObject var settings: AppSettings
     @StateObject private var library: ScanLibrary
     @State private var path = NavigationPath()
+    @State private var searchText = ""
     @State private var isScannerPresented = false
     @State private var isPhotoImporterPresented = false
     @State private var isPDFImporterPresented = false
@@ -30,32 +31,16 @@ struct RootView: View {
                     scansList
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(ScanTheme.background)
             .navigationTitle("Scans")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(ScanTheme.background, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink(value: LibraryRoute.settings) {
-                        Image(systemName: "gearshape")
-                    }
-                    .accessibilityLabel("Settings")
-                }
-                ToolbarItem(placement: .principal) {
-                    HStack(spacing: 9) {
-                        Image(systemName: "doc.viewfinder")
-                            .font(.system(size: 19, weight: .semibold))
-                            .foregroundStyle(ScanTheme.accent)
-                            .accessibilityHidden(true)
-                        Text("Scans")
-                            .font(.system(.title3, design: .rounded, weight: .bold))
-                            .foregroundStyle(ScanTheme.ink)
-                    }
-                    .accessibilityAddTraits(.isHeader)
+                    optionsMenu
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                newScanButton
+                actionBar
             }
             .navigationDestination(for: LibraryRoute.self) { route in
                 switch route {
@@ -114,7 +99,7 @@ struct RootView: View {
         ) {
             Button("Delete Scan", role: .destructive) {
                 if let document = pendingDeletion {
-                    library.delete(documentID: document.id)
+                    withAnimation { library.delete(documentID: document.id) }
                 }
                 pendingDeletion = nil
             }
@@ -132,61 +117,110 @@ struct RootView: View {
         }
     }
 
+    // MARK: - List
+
     private var scansList: some View {
-        List {
-            Section {
-                ForEach(settings.librarySortOrder.sorted(library.documents)) { document in
-                    NavigationLink(value: LibraryRoute.document(document.id)) {
-                        ScanLibraryRow(session: document)
-                    }
-                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-                    .alignmentGuide(.listRowSeparatorLeading) { _ in -16 }
-                    .listRowBackground(ScanTheme.surface)
-                    .listRowSeparatorTint(ScanTheme.border)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            pendingDeletion = document
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+        let sections = LibrarySection.group(filteredDocuments, by: settings.librarySortOrder)
+
+        return List {
+            ForEach(sections) { section in
+                Section {
+                    ForEach(section.documents) { document in
+                        NavigationLink(value: LibraryRoute.document(document.id)) {
+                            ScanLibraryRow(session: document)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                pendingDeletion = document
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                pendingDeletion = document
+                            } label: {
+                                Label("Delete Scan", systemImage: "trash")
+                            }
                         }
                     }
+                } header: {
+                    if let title = section.title {
+                        Text(title)
+                    }
                 }
-            } header: {
-                Text("Your documents (\(library.documents.count))")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(ScanTheme.secondaryInk)
-                    .textCase(nil)
-                    .padding(.bottom, 6)
             }
         }
         .listStyle(.insetGrouped)
-        .contentMargins(.top, 0, for: .scrollContent)
         .scrollContentBackground(.hidden)
+        .searchable(
+            text: $searchText,
+            placement: .navigationBarDrawer(displayMode: .automatic),
+            prompt: "Titles and text"
+        )
+        .overlay {
+            if filteredDocuments.isEmpty && !searchText.isEmpty {
+                ContentUnavailableView.search(text: searchText)
+            }
+        }
+        .animation(.default, value: library.documents.map(\.id))
     }
 
-    private var newScanButton: some View {
-        VStack(spacing: 10) {
+    private var filteredDocuments: [ScanSession] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sorted = settings.librarySortOrder.sorted(library.documents)
+        guard !query.isEmpty else { return sorted }
+        return sorted.filter { document in
+            document.title.localizedCaseInsensitiveContains(query)
+                || document.pages.contains { $0.recognizedText.localizedCaseInsensitiveContains(query) }
+        }
+    }
+
+    private var optionsMenu: some View {
+        Menu {
+            Picker(selection: $settings.librarySortOrder) {
+                ForEach(LibrarySortOrder.allCases) { order in
+                    Text(order.title).tag(order)
+                }
+            } label: {
+                Label("Sort By", systemImage: "arrow.up.arrow.down")
+            }
+            .pickerStyle(.menu)
+
+            Divider()
+
+            Button {
+                path.append(LibraryRoute.settings)
+            } label: {
+                Label("Settings", systemImage: "gearshape")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+        }
+        .accessibilityLabel("More")
+    }
+
+    // MARK: - Actions
+
+    private var actionBar: some View {
+        FloatingActionBar {
+            Button(action: beginScanning) {
+                FloatingActionLabel(title: "Scan", systemImage: "doc.viewfinder", isProminent: true)
+            }
+            .buttonStyle(.plain)
+
             AddPagesMenu(
+                includesScan: false,
                 onScan: beginScanning,
                 onImportPhotos: { isPhotoImporterPresented = true },
                 onImportPDF: { isPDFImporterPresented = true },
                 onPaste: pasteDocument
             ) {
-                HStack(spacing: 12) {
-                    Image(systemName: "plus")
-                        .font(.body.weight(.semibold))
-                    Text("Add document")
-                }
-                .frame(maxWidth: .infinity)
+                FloatingActionLabel(title: "Import", systemImage: "square.and.arrow.down")
             }
-            .buttonStyle(ScanPrimaryButtonStyle())
         }
-        .frame(maxWidth: 552)
-        .padding(.horizontal, 24)
-        .padding(.top, 14)
-        .padding(.bottom, 12)
+        .fixedSize(horizontal: true, vertical: false)
         .frame(maxWidth: .infinity)
-        .background(ScanTheme.background)
     }
 
     private var errorBinding: Binding<Bool> {
@@ -217,5 +251,49 @@ struct RootView: View {
         } catch {
             scannerError = error.localizedDescription
         }
+    }
+}
+
+/// Date buckets in the style of Notes and Files: Today, Yesterday, then months.
+private struct LibrarySection: Identifiable {
+    let title: String?
+    let documents: [ScanSession]
+
+    var id: String { title ?? "all" }
+
+    @MainActor
+    static func group(_ documents: [ScanSession], by order: LibrarySortOrder) -> [LibrarySection] {
+        guard order != .title else {
+            return documents.isEmpty ? [] : [LibrarySection(title: nil, documents: documents)]
+        }
+
+        let calendar = Calendar.current
+        let now = Date()
+        var sections: [LibrarySection] = []
+
+        for document in documents {
+            let date = order == .recent ? document.modifiedAt : document.createdAt
+            let title = bucketTitle(for: date, now: now, calendar: calendar)
+            if let last = sections.last, last.title == title {
+                sections[sections.count - 1] = LibrarySection(title: title, documents: last.documents + [document])
+            } else {
+                sections.append(LibrarySection(title: title, documents: [document]))
+            }
+        }
+        return sections
+    }
+
+    private static func bucketTitle(for date: Date, now: Date, calendar: Calendar) -> String {
+        if calendar.isDateInToday(date) { return "Today" }
+        if calendar.isDateInYesterday(date) { return "Yesterday" }
+        let startOfToday = calendar.startOfDay(for: now)
+        if let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date), to: startOfToday).day {
+            if days < 7 { return "Previous 7 Days" }
+            if days < 30 { return "Previous 30 Days" }
+        }
+        if calendar.isDate(date, equalTo: now, toGranularity: .year) {
+            return date.formatted(.dateTime.month(.wide))
+        }
+        return date.formatted(.dateTime.month(.wide).year())
     }
 }

@@ -8,74 +8,49 @@ struct PageDetailView: View {
     @State private var isDeleteConfirmationPresented = false
     @State private var cropRequest: CropRequest?
     @State private var editRequest: EditRequest?
+    @State private var isZoomPresented = false
+    @State private var rotationCount = 0
+
+    private var pageNumber: Int { session.pageNumber(for: pageID) ?? 1 }
 
     var body: some View {
         Group {
             if let page = session.page(withID: pageID) {
-                ScrollView {
-                    VStack(spacing: 18) {
+                List {
+                    Section {
                         pagePreview(page)
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 12, trailing: 0))
 
-                        QualitySummaryCard(quality: page.quality) { checkID, dismissed in
+                    Section {
+                        recognizedTextRow(page)
+                    }
+
+                    QualitySections(quality: page.quality) { checkID, dismissed in
+                        withAnimation {
                             session.setWarningDismissed(dismissed, checkID: checkID, pageID: pageID)
                         }
-
-                        recognizedTextCard(page)
                     }
-                    .padding(20)
-                    .padding(.bottom, 20)
                 }
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
                 .background(ScanTheme.background)
-                .tint(ScanTheme.accent)
-                .navigationTitle("Page \(session.pageNumber(for: pageID) ?? 1)")
+                .navigationTitle("Page \(pageNumber) of \(session.pages.count)")
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            editRequest = EditRequest(
-                                image: page.image,
-                                pageNumber: session.pageNumber(for: pageID) ?? 1
-                            )
-                        } label: {
-                            Label("Edit", systemImage: "square.and.pencil")
-                        }
-                        .fontWeight(.semibold)
-                        .accessibilityLabel("Edit page")
-                    }
-
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Menu {
-                            Button {
-                                cropRequest = CropRequest(image: page.image)
-                            } label: {
-                                Label("Crop Page", systemImage: "crop")
-                            }
-
-                            Button {
-                                session.rotate(pageID: pageID)
-                            } label: {
-                                Label("Rotate Right", systemImage: "rotate.right")
-                            }
-
-                            Divider()
-
-                            Button(role: .destructive) {
-                                isDeleteConfirmationPresented = true
-                            } label: {
-                                Label("Delete Page", systemImage: "trash")
-                            }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                        }
-                        .accessibilityLabel("Page options")
-                    }
+                .safeAreaInset(edge: .bottom) {
+                    actionBar(page)
+                }
+                .fullScreenCover(isPresented: $isZoomPresented) {
+                    PageZoomView(image: page.image, title: "Page \(pageNumber)")
                 }
             } else {
                 ContentUnavailableView("Page Removed", systemImage: "doc.badge.minus")
             }
         }
+        .sensoryFeedback(.selection, trigger: rotationCount)
         .alert(
-            "Delete this page?",
+            "Delete Page \(pageNumber)?",
             isPresented: $isDeleteConfirmationPresented
         ) {
             Button("Delete Page", role: .destructive) {
@@ -84,7 +59,7 @@ struct PageDetailView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This only removes the page from the current scan.")
+            Text("This page and its recognized text will be removed from the scan.")
         }
         .fullScreenCover(item: $cropRequest) { request in
             CropPageView(
@@ -110,73 +85,74 @@ struct PageDetailView: View {
     }
 
     private func pagePreview(_ page: ScannedPage) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Label("PAGE \(session.pageNumber(for: pageID) ?? 1) OF \(session.pages.count)", systemImage: "doc")
-                    .font(.caption2.weight(.semibold))
-                    .tracking(1)
-                    .foregroundStyle(ScanTheme.secondaryInk)
-                Spacer()
-                Text("Preview")
-                    .font(.caption)
-                    .foregroundStyle(ScanTheme.secondaryInk)
-            }
-            .padding(.horizontal, 4)
-
-            Image(uiImage: page.image)
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(ScanTheme.border, lineWidth: 1)
-                }
-                .accessibilityLabel("Scanned page \(session.pageNumber(for: pageID) ?? 1)")
+        Button {
+            isZoomPresented = true
+        } label: {
+            PaperImage(image: page.image, cornerRadius: 6)
+                .frame(maxWidth: .infinity, maxHeight: 460)
+                .padding(.horizontal, 28)
         }
-        .padding(14)
-        .scanCard()
+        .buttonStyle(.plain)
+        .accessibilityLabel("Scanned page \(pageNumber)")
+        .accessibilityHint("Opens the page full screen for zooming")
     }
 
-    private func recognizedTextCard(_ page: ScannedPage) -> some View {
+    private func recognizedTextRow(_ page: ScannedPage) -> some View {
         NavigationLink {
             RecognizedTextView(session: session, pageID: pageID)
         } label: {
-            HStack(spacing: 14) {
-                Image(systemName: "text.viewfinder")
-                    .font(.title3)
-                    .foregroundStyle(ScanTheme.accent)
-                    .frame(width: 46, height: 46)
-                    .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 15))
-                    .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Recognized text")
-                        .font(.headline)
+            HStack(spacing: 12) {
+                SettingsIcon("text.viewfinder", color: .blue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Recognized Text")
                         .foregroundStyle(ScanTheme.ink)
                     Text(textSummary(for: page))
                         .font(.subheadline)
                         .foregroundStyle(ScanTheme.secondaryInk)
-                        .lineLimit(2)
+                        .lineLimit(1)
                 }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(ScanTheme.secondaryInk)
-                    .accessibilityHidden(true)
             }
-            .padding(18)
-            .scanCard()
         }
-        .buttonStyle(.plain)
         .disabled(page.quality == .analyzing)
     }
 
+    private func actionBar(_ page: ScannedPage) -> some View {
+        FloatingActionBar {
+            Button {
+                editRequest = EditRequest(image: page.image, pageNumber: pageNumber)
+            } label: {
+                FloatingActionLabel(title: "Markup", systemImage: "pencil.tip.crop.circle")
+            }
+
+            Button {
+                cropRequest = CropRequest(image: page.image)
+            } label: {
+                FloatingActionLabel(title: "Crop", systemImage: "crop")
+            }
+
+            Button {
+                rotationCount += 1
+                session.rotate(pageID: pageID)
+            } label: {
+                FloatingActionLabel(title: "Rotate", systemImage: "rotate.right")
+            }
+
+            Button {
+                isDeleteConfirmationPresented = true
+            } label: {
+                FloatingActionLabel(title: "Delete", systemImage: "trash", role: .destructive)
+            }
+        }
+        .buttonStyle(.plain)
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(maxWidth: .infinity)
+    }
+
     private func textSummary(for page: ScannedPage) -> String {
-        if page.quality == .analyzing { return "Recognizing text on device…" }
-        if page.recognizedText.isEmpty { return "No readable text was found." }
-        return page.recognizedText.replacingOccurrences(of: "\n", with: " ")
+        if page.quality == .analyzing { return "Reading on device…" }
+        if page.recognizedText.isEmpty { return "No text found" }
+        let words = page.recognizedText.split(whereSeparator: \.isWhitespace).count
+        return "\(words) \(words == 1 ? "word" : "words")"
     }
 }
 

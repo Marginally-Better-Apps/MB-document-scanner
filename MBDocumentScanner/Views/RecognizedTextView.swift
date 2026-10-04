@@ -24,50 +24,48 @@ struct RecognizedTextView: View {
                 )
                 .padding(.top, 80)
             } else {
-                VStack(alignment: .leading, spacing: 22) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "text.quote")
-                            .font(.title3)
-                            .foregroundStyle(ScanTheme.accent)
-                            .frame(width: 44, height: 44)
-                            .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 14))
-                            .accessibilityHidden(true)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Page \(session.pageNumber(for: pageID) ?? 1)")
-                                .font(.headline)
-                                .foregroundStyle(ScanTheme.ink)
-                            Text("\(wordCount) \(wordCount == 1 ? "word" : "words") · Recognized on device")
-                                .font(.caption)
-                                .foregroundStyle(ScanTheme.secondaryInk)
-                        }
-                    }
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("\(wordCount) \(wordCount == 1 ? "word" : "words") · Recognized on device")
+                        .font(.footnote)
+                        .foregroundStyle(ScanTheme.secondaryInk)
+                        .padding(.horizontal, 20)
 
                     Text(text)
                         .font(.body)
-                        .lineSpacing(7)
+                        .lineSpacing(5)
                         .foregroundStyle(ScanTheme.ink)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(22)
+                        .padding(20)
                         .scanCard()
                 }
-                .padding(20)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 20)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
             }
         }
         .background(ScanTheme.background)
         .tint(ScanTheme.accent)
-        .navigationTitle("Recognized Text")
+        .navigationTitle("Page \(session.pageNumber(for: pageID) ?? 1) Text")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ShareLink(item: text) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .disabled(text.isEmpty)
+                .accessibilityLabel("Share text")
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     UIPasteboard.general.string = text
                     didCopy = true
                 } label: {
-                    Label(didCopy ? "Copied" : "Copy", systemImage: didCopy ? "checkmark" : "doc.on.doc")
+                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                        .contentTransition(.symbolEffect(.replace))
                 }
-                .fontWeight(.semibold)
+                .accessibilityLabel(didCopy ? "Copied" : "Copy text")
                 .disabled(text.isEmpty)
             }
         }

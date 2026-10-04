@@ -26,47 +26,36 @@ struct ExportOptionsView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+            Form {
+                Section {
                     exportSummary
+                }
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        ScanSectionHeading(title: "File format")
-                        formatLayout {
-                            ForEach(ExportFormat.allCases) { option in
-                                formatButton(option)
-                            }
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        ScanSectionHeading(title: "Quality")
-                        VStack(alignment: .leading, spacing: 18) {
-                            qualityLayout {
-                                ForEach(CompressionPreset.allCases) { preset in
-                                    qualityButton(preset)
-                                }
-                            }
-                            .padding(5)
-                            .background(ScanTheme.background, in: RoundedRectangle(cornerRadius: 16))
-
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text(compression.title)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(ScanTheme.ink)
-                                Text(compression.detail)
-                                    .font(.subheadline)
-                                    .foregroundStyle(ScanTheme.secondaryInk)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .padding(18)
-                        .scanCard()
+                Section("Format") {
+                    ForEach(ExportFormat.allCases) { option in
+                        formatRow(option)
                     }
                 }
-                .padding(24)
+
+                Section {
+                    Picker("Quality", selection: $compression) {
+                        ForEach(CompressionPreset.allCases) { preset in
+                            Text(preset.shortTitle).tag(preset)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                } header: {
+                    Text("Quality")
+                } footer: {
+                    Text(compression.detail)
+                        .contentTransition(.opacity)
+                }
             }
+            .scrollContentBackground(.hidden)
             .background(ScanTheme.background)
+            .disabled(isExporting)
             .navigationTitle("Export")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -76,25 +65,24 @@ struct ExportOptionsView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 Button(action: export) {
-                    HStack {
+                    HStack(spacing: 8) {
                         if isExporting {
                             ProgressView().tint(.white)
-                        } else {
-                            Image(systemName: format == .pdf ? "doc.text.magnifyingglass" : "square.and.arrow.up")
                         }
                         Text(exportButtonTitle)
                     }
-                    .font(.headline)
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(ScanPrimaryButtonStyle())
                 .disabled(isExporting)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
-                .background(ScanTheme.background)
+                .frame(maxWidth: 520)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
             }
         }
         .tint(ScanTheme.accent)
+        .sensoryFeedback(.selection, trigger: format)
+        .sensoryFeedback(.selection, trigger: compression)
         .sheet(isPresented: $isSharePresented) {
             ShareSheet(activityItems: shareItems)
         }
@@ -111,114 +99,62 @@ struct ExportOptionsView: View {
         }
     }
 
-    private var formatLayout: AnyLayout {
-        dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
-            : AnyLayout(HStackLayout(spacing: 12))
-    }
-
-    private var qualityLayout: AnyLayout {
-        dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(spacing: 6))
-            : AnyLayout(HStackLayout(spacing: 6))
-    }
-
     private var exportSummary: some View {
-        let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
-            : AnyLayout(HStackLayout(spacing: 16))
+        HStack(spacing: 16) {
+            ZStack {
+                if let thumbnail = session.thumbnail {
+                    PaperImage(image: thumbnail, cornerRadius: 3)
+                }
+            }
+            .frame(width: 52, height: 68)
 
-        return layout {
-            Image(systemName: "doc.text")
-                .font(.system(size: 25, weight: .medium))
-                .foregroundStyle(ScanTheme.accent)
-                .frame(width: 64, height: 72)
-                .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 18))
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Ready to share")
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(ScanTheme.ink)
+            VStack(alignment: .leading, spacing: 3) {
                 Text(session.title)
+                    .font(.headline)
+                    .foregroundStyle(ScanTheme.ink)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                Text("\(session.pages.count.pageCountText) · \(format == .pdf ? "One PDF" : "Separate JPEGs")")
                     .font(.subheadline)
                     .foregroundStyle(ScanTheme.secondaryInk)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
-                Text("\(session.pages.count) \(session.pages.count == 1 ? "page" : "pages") · \(format == .pdf ? "One PDF" : "Individual JPEGs")")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(ScanTheme.accent)
-            }
-            if !dynamicTypeSize.isAccessibilitySize {
-                Spacer(minLength: 0)
+                    .contentTransition(.opacity)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .combine)
     }
 
-    private func formatButton(_ option: ExportFormat) -> some View {
+    private func formatRow(_ option: ExportFormat) -> some View {
         let isSelected = format == option
         return Button {
-            withAnimation(reduceMotion ? nil : .snappy(duration: 0.22)) {
+            withAnimation(reduceMotion ? nil : .snappy(duration: 0.2)) {
                 format = option
             }
         } label: {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    Image(systemName: option.systemImage)
-                        .font(.system(size: 25, weight: .regular))
-                    Spacer()
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(isSelected ? ScanTheme.accent : ScanTheme.border)
-                }
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                SettingsIcon(option.systemImage, color: option == .pdf ? .red : .blue)
+                VStack(alignment: .leading, spacing: 2) {
                     Text(option.title)
-                        .font(.headline)
-                    Text(option == .pdf ? "One document" : "Separate images")
-                        .font(.caption)
+                        .foregroundStyle(ScanTheme.ink)
+                    Text(option == .pdf ? "One document, ready to sign or send" : "One image per page")
+                        .font(.subheadline)
                         .foregroundStyle(ScanTheme.secondaryInk)
                 }
-                .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(ScanTheme.accent)
+                }
             }
-            .foregroundStyle(isSelected ? ScanTheme.accent : ScanTheme.ink)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(18)
-            .background(isSelected ? ScanTheme.accentSoft : ScanTheme.surface, in: RoundedRectangle(cornerRadius: 22))
-            .overlay {
-                RoundedRectangle(cornerRadius: 22)
-                    .strokeBorder(isSelected ? ScanTheme.accent : ScanTheme.border, lineWidth: isSelected ? 1.5 : 1)
-            }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(isExporting)
-        .accessibilityLabel(option.title)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-
-    private func qualityButton(_ preset: CompressionPreset) -> some View {
-        let isSelected = compression == preset
-        return Button {
-            withAnimation(reduceMotion ? nil : .snappy(duration: 0.22)) {
-                compression = preset
-            }
-        } label: {
-            Text(preset.shortTitle)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isSelected ? ScanTheme.accent : ScanTheme.secondaryInk)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.vertical, dynamicTypeSize.isAccessibilitySize ? 8 : 0)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(isSelected ? ScanTheme.surface : .clear, in: RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-        .disabled(isExporting)
-        .accessibilityLabel(preset.title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var exportButtonTitle: String {
         if isExporting { return "Preparing…" }
-        return format == .pdf ? "Preview PDF" : "Export Images"
+        return format == .pdf ? "Preview PDF" : "Share \(session.pages.count == 1 ? "Image" : "Images")"
     }
 
     private func export() {

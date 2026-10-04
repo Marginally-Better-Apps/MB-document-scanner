@@ -16,7 +16,7 @@ struct PDFPageSelectionView: View {
         if dynamicTypeSize.isAccessibilitySize {
             return [GridItem(.flexible(minimum: 132, maximum: 400))]
         }
-        return [GridItem(.adaptive(minimum: 132, maximum: 190), spacing: 16)]
+        return [GridItem(.adaptive(minimum: 100, maximum: 180), spacing: 18, alignment: .bottom)]
     }
 
     init(
@@ -33,13 +33,13 @@ struct PDFPageSelectionView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(source.suggestedTitle)
-                            .font(.title2.weight(.bold))
+                            .font(.title2.weight(.semibold))
                             .foregroundStyle(ScanTheme.ink)
                             .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
-                        Text("Keep the pages you need. Tap to select.")
+                        Text("\(source.pages.count.pageCountText) · Tap to choose which to import")
                             .font(.subheadline)
                             .foregroundStyle(ScanTheme.secondaryInk)
 
@@ -51,16 +51,17 @@ struct PDFPageSelectionView: View {
                         }
                     }
 
-                    LazyVGrid(columns: columns, spacing: 20) {
+                    LazyVGrid(columns: columns, alignment: .center, spacing: 22) {
                         ForEach(source.pages) { page in
                             pageButton(page)
                         }
                     }
                 }
-                .padding(24)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
             }
             .background(ScanTheme.background)
-            .navigationTitle("Choose PDF Pages")
+            .navigationTitle("Import PDF")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -104,48 +105,44 @@ struct PDFPageSelectionView: View {
             }
             UISelectionFeedbackGenerator().selectionChanged()
         } label: {
-            VStack(spacing: 12) {
-                ZStack(alignment: .topTrailing) {
-                    Image(uiImage: page.thumbnail)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.white)
-                        .padding(10)
-
-                    ZStack {
-                        Circle()
-                            .fill(isSelected ? ScanTheme.primaryFill : ScanTheme.surface)
-                        if isSelected {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(.white)
-                        } else {
-                            Circle().strokeBorder(ScanTheme.border, lineWidth: 1.5)
-                        }
+            VStack(spacing: 8) {
+                PaperImage(image: page.thumbnail)
+                    .opacity(isSelected ? 1 : 0.45)
+                    .overlay(alignment: .bottomTrailing) {
+                        selectionMark(isSelected)
+                            .padding(6)
                     }
-                    .frame(width: 28, height: 28)
-                    .padding(12)
-                }
-                .aspectRatio(0.74, contentMode: .fit)
-                .background(isSelected ? ScanTheme.accentSoft : ScanTheme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .strokeBorder(isSelected ? ScanTheme.accent : ScanTheme.border, lineWidth: isSelected ? 2 : 1)
-                }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .aspectRatio(0.75, contentMode: .fit)
 
-                Text("Page \(page.index + 1)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(isSelected ? ScanTheme.accent : ScanTheme.secondaryInk)
-                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(page.index + 1)")
+                    .font(.subheadline)
+                    .monospacedDigit()
+                    .foregroundStyle(isSelected ? ScanTheme.ink : ScanTheme.tertiaryInk)
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(isImporting)
         .accessibilityLabel("Page \(page.index + 1)")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func selectionMark(_ isSelected: Bool) -> some View {
+        ZStack {
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, ScanTheme.accent)
+            } else {
+                Image(systemName: "circle")
+                    .foregroundStyle(ScanTheme.tertiaryInk)
+            }
+        }
+        .font(.system(size: 24))
+        .background(Circle().fill(.white).padding(2))
+        .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
     }
 
     private var importBar: some View {
@@ -161,7 +158,7 @@ struct PDFPageSelectionView: View {
                 HStack {
                     if isImporting {
                         ProgressView()
-                            .tint(.white)
+                            .tint(ScanTheme.onAccent)
                     } else {
                         Image(systemName: "square.and.arrow.down")
                     }
@@ -175,9 +172,12 @@ struct PDFPageSelectionView: View {
             .buttonStyle(ScanPrimaryButtonStyle())
             .disabled(selectedIndexes.isEmpty || isImporting)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
-        .background(ScanTheme.background)
+        .frame(maxWidth: 560)
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity)
+        .background(.bar)
     }
 
     private var selectionButtonTitle: String {

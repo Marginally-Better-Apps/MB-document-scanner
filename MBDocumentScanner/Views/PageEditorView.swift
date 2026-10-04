@@ -76,7 +76,6 @@ struct PageEditorView: View {
             .background(ScanTheme.background)
             .navigationTitle("Page \(pageNumber)")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(ScanTheme.surface, for: .navigationBar)
             .toolbar { editorToolbar }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 editingPalette
@@ -197,9 +196,7 @@ struct PageEditorView: View {
                     Button("Fit Page") { zoomResetID += 1 }
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(ScanTheme.accent)
-                        .padding(.horizontal, 12)
                         .frame(minHeight: 36)
-                        .background(ScanTheme.accentSoft, in: Capsule())
                         .accessibilityHint("Reset the zoom to show the entire page")
                 }
                 .foregroundStyle(ScanTheme.secondaryInk)
@@ -330,12 +327,10 @@ struct PageEditorView: View {
 
     private var interactionStatus: some View {
         Label(statusText, systemImage: statusIcon)
-            .font(.caption.weight(.medium))
-            .foregroundStyle(ScanTheme.accent)
+            .font(.footnote)
+            .foregroundStyle(ScanTheme.secondaryInk)
             .multilineTextAlignment(.center)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .contentTransition(.opacity)
             .accessibilityLabel(statusText)
     }
 
@@ -367,9 +362,9 @@ struct PageEditorView: View {
         VStack(spacing: 12) {
             contextualControls
                 .frame(maxWidth: 720)
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 20)
 
-            HStack(spacing: 6) {
+            FloatingActionBar {
                 ForEach(EditorTool.allCases) { tool in
                     EditorToolButton(tool: tool, isSelected: selectedTool == tool) {
                         withAnimation(.snappy(duration: 0.18)) {
@@ -380,18 +375,10 @@ struct PageEditorView: View {
                     }
                 }
             }
-            .frame(maxWidth: 620)
-            .padding(6)
-            .background(ScanTheme.background, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .frame(maxWidth: 520)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 8)
+        .padding(.top, 8)
         .frame(maxWidth: .infinity)
-        .background(ScanTheme.surface)
-        .overlay(alignment: .top) {
-            Rectangle().fill(ScanTheme.border).frame(height: 0.5)
-        }
     }
 
     @ViewBuilder
@@ -975,18 +962,8 @@ private struct EditorToolButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: tool.systemImage)
-                    .font(.system(size: 20, weight: .medium))
-                Text(tool.title)
-                    .font(.caption.weight(.semibold))
-            }
-            .foregroundStyle(isSelected ? .white : ScanTheme.secondaryInk)
-            .frame(maxWidth: .infinity, minHeight: 58)
-            .background(
-                isSelected ? ScanTheme.primaryFill : Color.clear,
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-            )
+            FloatingActionLabel(title: tool.title, systemImage: tool.systemImage, isProminent: isSelected)
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])

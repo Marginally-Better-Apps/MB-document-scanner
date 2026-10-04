@@ -8,7 +8,6 @@ struct PDFPreviewView: View {
     private let exportDocument: PDFExportDocument?
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var isSharePresented = false
     @State private var isSavePresented = false
     @State private var didSave = false
@@ -23,19 +22,19 @@ struct PDFPreviewView: View {
     var body: some View {
         NavigationStack {
             PDFDocumentView(url: url)
+                .ignoresSafeArea(edges: .bottom)
                 .background(ScanTheme.background)
-                .navigationTitle("PDF Preview")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Back") { dismiss() }
+                        Button("Done") { dismiss() }
+                    }
+                    ToolbarItem(placement: .principal) {
+                        documentSummary
                     }
                 }
                 .safeAreaInset(edge: .bottom) {
                     actionBar
-                }
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    documentSummary
                 }
         }
         .tint(ScanTheme.accent)
@@ -72,53 +71,27 @@ struct PDFPreviewView: View {
     }
 
     private var documentSummary: some View {
-        HStack(spacing: 12) {
-            if !dynamicTypeSize.isAccessibilitySize {
-                Image(systemName: "doc.richtext")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(ScanTheme.accent)
-                    .frame(width: 46, height: 46)
-                    .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 14))
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(exportFilename)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(ScanTheme.ink)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-                Text("\(pageCount) \(pageCount == 1 ? "page" : "pages") · \(formattedFileSize)")
-                    .font(.caption)
-                    .foregroundStyle(ScanTheme.secondaryInk)
-            }
-            Spacer(minLength: 0)
-            if !dynamicTypeSize.isAccessibilitySize {
-                Text("PDF")
-                    .font(.caption2.weight(.bold))
-                    .tracking(0.8)
-                    .foregroundStyle(ScanTheme.accent)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(ScanTheme.accentSoft, in: Capsule())
-            }
+        VStack(spacing: 1) {
+            Text(exportFilename)
+                .font(.headline)
+                .foregroundStyle(ScanTheme.ink)
+                .lineLimit(1)
+            Text("PDF · \(pageCount.pageCountText) · \(formattedFileSize)")
+                .font(.caption)
+                .foregroundStyle(ScanTheme.secondaryInk)
+                .lineLimit(1)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
-        .background(ScanTheme.background)
+        .frame(maxWidth: 240)
+        .accessibilityElement(children: .combine)
     }
 
     private var actionBar: some View {
-        let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(spacing: 12))
-            : AnyLayout(HStackLayout(spacing: 12))
-
-        return layout {
+        FloatingActionBar {
             Button {
                 isSharePresented = true
             } label: {
-                Label("Share", systemImage: "square.and.arrow.up")
-                    .frame(maxWidth: .infinity)
+                FloatingActionLabel(title: "Share", systemImage: "square.and.arrow.up")
             }
-            .buttonStyle(ScanSecondaryButtonStyle())
 
             Button {
                 if exportDocument == nil {
@@ -127,15 +100,12 @@ struct PDFPreviewView: View {
                     isSavePresented = true
                 }
             } label: {
-                Label("Save PDF", systemImage: "folder.badge.plus")
-                    .frame(maxWidth: .infinity)
+                FloatingActionLabel(title: "Save to Files", systemImage: "folder", isProminent: true)
             }
-            .buttonStyle(ScanPrimaryButtonStyle())
         }
-        .font(.headline)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
-        .background(ScanTheme.background)
+        .buttonStyle(.plain)
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(maxWidth: .infinity)
     }
 
     private var formattedFileSize: String {
@@ -162,7 +132,7 @@ private struct PDFDocumentView: UIViewRepresentable {
         pdfView.displayDirection = .vertical
         pdfView.displaysPageBreaks = true
         pdfView.pageBreakMargins = UIEdgeInsets(top: 16, left: 24, bottom: 16, right: 24)
-        pdfView.backgroundColor = UIColor(ScanTheme.background)
+        pdfView.backgroundColor = .systemGroupedBackground
         pdfView.document = PDFDocument(url: url)
         return pdfView
     }

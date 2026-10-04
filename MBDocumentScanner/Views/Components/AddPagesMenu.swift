@@ -3,6 +3,7 @@ import SwiftUI
 import UIKit
 
 struct AddPagesMenu<MenuLabel: View>: View {
+    var includesScan = true
     let onScan: () -> Void
     let onImportPhotos: () -> Void
     let onImportPDF: () -> Void
@@ -17,22 +18,28 @@ struct AddPagesMenu<MenuLabel: View>: View {
 
     var body: some View {
         Menu {
-            Button(action: onScan) {
-                Label("Scan", systemImage: "doc.viewfinder")
+            if includesScan {
+                Section {
+                    Button(action: onScan) {
+                        Label("Scan Document", systemImage: "doc.viewfinder")
+                    }
+                }
             }
 
-            Button(action: onImportPhotos) {
-                Label("Choose Photos", systemImage: "photo.on.rectangle")
-            }
+            Section {
+                Button(action: onImportPhotos) {
+                    Label("Photos", systemImage: "photo.on.rectangle")
+                }
 
-            Button(action: onImportPDF) {
-                Label("Import PDF", systemImage: "doc.badge.plus")
-            }
+                Button(action: onImportPDF) {
+                    Label("PDF from Files", systemImage: "folder")
+                }
 
-            Button(action: onPaste) {
-                Label(pasteButtonTitle, systemImage: "doc.on.clipboard")
+                Button(action: onPaste) {
+                    Label(pasteButtonTitle, systemImage: "doc.on.clipboard")
+                }
+                .disabled(pasteboardLabel == nil)
             }
-            .disabled(pasteboardLabel == nil)
         } label: {
             label()
         }

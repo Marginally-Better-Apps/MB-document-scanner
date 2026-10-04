@@ -8,27 +8,27 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Appearance") {
+            Section {
+                appHeader
+            }
+
+            Section {
                 Picker(selection: $settings.appearance) {
                     ForEach(AppAppearance.allCases) { appearance in
                         Text(appearance.title).tag(appearance)
                     }
                 } label: {
-                    SettingsLabel("Theme", systemImage: "circle.lefthalf.filled")
+                    SettingsLabel("Appearance", systemImage: "circle.lefthalf.filled", color: .indigo)
                 }
-            }
-            .listRowBackground(ScanTheme.surface)
 
-            Section("Library") {
                 Picker(selection: $settings.librarySortOrder) {
                     ForEach(LibrarySortOrder.allCases) { order in
                         Text(order.title).tag(order)
                     }
                 } label: {
-                    SettingsLabel("Sort scans", systemImage: "arrow.up.arrow.down")
+                    SettingsLabel("Sort Scans", systemImage: "arrow.up.arrow.down", color: .blue)
                 }
             }
-            .listRowBackground(ScanTheme.surface)
 
             Section {
                 Picker(selection: $settings.exportFormat) {
@@ -36,7 +36,7 @@ struct SettingsView: View {
                         Text(format.title).tag(format)
                     }
                 } label: {
-                    SettingsLabel("File format", systemImage: "doc")
+                    SettingsLabel("File Format", systemImage: "doc.fill", color: .red)
                 }
 
                 Picker(selection: $settings.compression) {
@@ -44,171 +44,119 @@ struct SettingsView: View {
                         Text(preset.title).tag(preset)
                     }
                 } label: {
-                    SettingsLabel("Quality", systemImage: "slider.horizontal.3")
+                    SettingsLabel("Quality", systemImage: "slider.horizontal.3", color: .orange)
                 }
             } header: {
-                Text("Export defaults")
+                Text("Export")
             }
-            .listRowBackground(ScanTheme.surface)
 
             Section {
                 Toggle(isOn: $settings.usesLanguageCorrection) {
-                    SettingsLabel("Language correction", systemImage: "text.badge.checkmark")
+                    SettingsLabel("Language Correction", systemImage: "character.cursor.ibeam", color: .green)
                 }
             } header: {
-                Text("Text recognition")
+                Text("Text Recognition")
             } footer: {
-                Text("Uses language context to improve recognized text. Turn off for codes or unusual spellings. Applies when pages are added or edited; existing text stays as it is.")
+                Text("Uses language context to improve recognized text. Turn off for codes or unusual spellings. Applies to pages added or edited from now on.")
             }
-            .listRowBackground(ScanTheme.surface)
 
             Section {
-                Label {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("On your device")
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(ScanTheme.ink)
-                        Text("Scans and text recognition stay on your device. No account, ads, or analytics. You choose what to share when you export.")
-                            .font(.subheadline)
-                            .foregroundStyle(ScanTheme.secondaryInk)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                } icon: {
-                    settingsIcon("lock.shield")
-                }
-                .padding(.vertical, 6)
-
                 Button {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         openURL(url)
                     }
                 } label: {
-                    externalLabel("Device permissions", systemImage: "hand.raised")
+                    externalLabel("Camera & Photos Access", systemImage: "hand.raised.fill", color: .blue)
                 }
             } header: {
-                Text("Privacy & permissions")
+                Text("Privacy")
+            } footer: {
+                Text("Scans and text recognition stay on this device. No account, ads, or analytics. You choose what to share when you export.")
             }
-            .listRowBackground(ScanTheme.surface)
 
             Section {
-                Button {
-                    isResetPresented = true
-                } label: {
-                    SettingsLabel("Reset settings", systemImage: "arrow.counterclockwise")
+                Link(destination: AppInformation.githubURL) {
+                    externalLabel("Source Code", systemImage: "chevron.left.forwardslash.chevron.right", color: .gray)
                 }
-            }
-            .listRowBackground(ScanTheme.surface)
 
-            aboutSection
+                Link(destination: AppInformation.issuesURL) {
+                    externalLabel("Report an Issue", systemImage: "exclamationmark.bubble.fill", color: .pink)
+                }
+
+                NavigationLink {
+                    LicenseView()
+                } label: {
+                    SettingsLabel("License", systemImage: "doc.text.fill", color: .gray)
+                }
+            } header: {
+                Text("About")
+            }
+
+            Section {
+                Button("Reset Settings", role: .destructive) {
+                    isResetPresented = true
+                }
+                .frame(maxWidth: .infinity)
+            } footer: {
+                Text("Free and open source. Made for iPhone and iPad.")
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 12)
+            }
         }
         .pickerStyle(.navigationLink)
-        .foregroundStyle(ScanTheme.ink)
         .scrollContentBackground(.hidden)
         .background(ScanTheme.background)
         .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(ScanTheme.background, for: .navigationBar)
-        .alert("Reset settings?", isPresented: $isResetPresented) {
-            Button("Reset Settings", role: .destructive) { settings.reset() }
+        .navigationBarTitleDisplayMode(.large)
+        .alert("Reset Settings?", isPresented: $isResetPresented) {
+            Button("Reset", role: .destructive) { settings.reset() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Appearance, sorting, export defaults, and language correction will return to their original values. Your scans will not be changed.")
+            Text("Appearance, sorting, export defaults, and language correction return to their original values. Your scans are not changed.")
         }
     }
 
-    private var aboutSection: some View {
-        Section {
-            VStack(spacing: 12) {
-                Image(systemName: "doc.viewfinder")
-                    .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(ScanTheme.accent)
-                    .frame(width: 72, height: 72)
-                    .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 20))
-                    .accessibilityHidden(true)
+    /// Like the account card at the top of Settings.
+    private var appHeader: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "doc.viewfinder")
+                .font(.system(size: 30, weight: .regular))
+                .foregroundStyle(.white)
+                .frame(width: 62, height: 62)
+                .background(
+                    LinearGradient(
+                        colors: [Color(red: 0.32, green: 0.78, blue: 0.68), Color(red: 0.0, green: 0.42, blue: 0.38)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                )
+                .accessibilityHidden(true)
 
-                VStack(spacing: 5) {
-                    Text("MB Document Scanner")
-                        .font(.system(.title3, design: .rounded, weight: .bold))
-                        .foregroundStyle(ScanTheme.ink)
-                    Text("Marginally Better Document Scanner")
-                        .font(.subheadline)
-                        .foregroundStyle(ScanTheme.secondaryInk)
-                }
-
+            VStack(alignment: .leading, spacing: 3) {
+                Text("MB Document Scanner")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(ScanTheme.ink)
                 Text(AppInformation.version)
-                    .font(.caption.monospacedDigit())
+                    .font(.subheadline)
                     .foregroundStyle(ScanTheme.secondaryInk)
             }
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
-            .listRowSeparator(.hidden)
-
-            Link(destination: AppInformation.githubURL) {
-                externalLabel("View on GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
-            }
-
-            Link(destination: AppInformation.issuesURL) {
-                externalLabel("Report an issue", systemImage: "bubble.left.and.bubble.right")
-            }
-
-            NavigationLink {
-                LicenseView()
-            } label: {
-                SettingsLabel("MIT License", systemImage: "doc.plaintext")
-            }
-        } header: {
-            Text("About")
-        } footer: {
-            Text("Free and open source. Made for iPhone and iPad.")
-                .frame(maxWidth: .infinity)
-                .multilineTextAlignment(.center)
-                .padding(.vertical, 8)
         }
-        .listRowBackground(ScanTheme.surface)
+        .padding(.vertical, 6)
+        .accessibilityElement(children: .combine)
     }
 
-    private func externalLabel(_ title: String, systemImage: String) -> some View {
+    private func externalLabel(_ title: String, systemImage: String, color: Color) -> some View {
         HStack {
-            SettingsLabel(title, systemImage: systemImage)
+            SettingsLabel(title, systemImage: systemImage, color: color)
             Spacer(minLength: 8)
             Image(systemName: "arrow.up.right")
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(ScanTheme.secondaryInk)
+                .foregroundStyle(ScanTheme.tertiaryInk)
                 .accessibilityHidden(true)
         }
     }
-}
-
-private struct SettingsLabel: View {
-    let title: String
-    let systemImage: String
-
-    init(_ title: String, systemImage: String) {
-        self.title = title
-        self.systemImage = systemImage
-    }
-
-    var body: some View {
-        Label {
-            Text(title)
-                .foregroundStyle(ScanTheme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            settingsIcon(systemImage)
-        }
-        .padding(.vertical, 3)
-    }
-}
-
-private func settingsIcon(_ systemImage: String) -> some View {
-    Image(systemName: systemImage)
-        .font(.system(size: 15, weight: .medium))
-        .foregroundStyle(ScanTheme.accent)
-        .frame(width: 30, height: 30)
-        .background(ScanTheme.accentSoft, in: RoundedRectangle(cornerRadius: 8))
-        .accessibilityHidden(true)
 }
 
 private enum AppInformation {
@@ -233,7 +181,7 @@ private struct LicenseView: View {
                 .padding(24)
         }
         .background(ScanTheme.background)
-        .navigationTitle("MIT License")
+        .navigationTitle("License")
         .navigationBarTitleDisplayMode(.inline)
     }
 

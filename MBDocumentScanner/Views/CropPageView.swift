@@ -18,7 +18,7 @@ struct CropPageView: View {
                 let imageRect = aspectFitRect(for: image.size, in: geometry.size)
 
                 ZStack {
-                    Color(red: 0.075, green: 0.11, blue: 0.105).ignoresSafeArea()
+                    Color.black.ignoresSafeArea()
 
                     Image(uiImage: image)
                         .resizable()
@@ -55,28 +55,41 @@ struct CropPageView: View {
                     }
                 }
             }
-            .navigationTitle("Crop Page")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(ScanTheme.surface, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
                         .disabled(isApplying)
                 }
 
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Reset") {
-                        withAnimation(.snappy) {
-                            resetCurrentCrop()
+                ToolbarItem(placement: .principal) {
+                    if isCurrentCropFullImage {
+                        Text("Crop")
+                            .font(.headline)
+                    } else {
+                        Button("Reset") {
+                            withAnimation(.snappy) {
+                                resetCurrentCrop()
+                            }
                         }
+                        .font(.subheadline.weight(.semibold))
+                        .disabled(isApplying)
                     }
-                    .disabled(isApplying || isCurrentCropFullImage)
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done", action: applyCrop)
+                        .fontWeight(.semibold)
+                        .disabled(isApplying)
+                        .accessibilityLabel("Apply Crop")
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                applyBar
+                modeBar
             }
         }
+        .preferredColorScheme(.dark)
         .tint(ScanTheme.accent)
         .interactiveDismissDisabled(isApplying)
         .onChange(of: cropMode) { oldMode, newMode in
@@ -93,52 +106,39 @@ struct CropPageView: View {
         }
     }
 
-    private var applyBar: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 6) {
+    private var modeBar: some View {
+        VStack(spacing: 14) {
+            Text(cropMode.instruction)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .contentTransition(.opacity)
+
+            FloatingActionBar {
                 ForEach(CropMode.allCases) { mode in
                     Button {
-                        withAnimation(.snappy(duration: 0.2)) {
+                        withAnimation(.snappy(duration: 0.25)) {
                             cropMode = mode
                         }
                     } label: {
-                        Label(mode.title, systemImage: mode.systemImage)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(cropMode == mode ? ScanTheme.accent : ScanTheme.secondaryInk)
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                            .background(
-                                cropMode == mode ? ScanTheme.surface : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 13, style: .continuous)
-                            )
+                        FloatingActionLabel(
+                            title: mode.title,
+                            systemImage: mode.systemImage,
+                            isProminent: cropMode == mode
+                        )
+                        .frame(minWidth: 96)
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(cropMode == mode ? .isSelected : [])
                 }
             }
-            .padding(5)
-            .background(ScanTheme.background, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .fixedSize(horizontal: true, vertical: false)
             .disabled(isApplying)
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Crop mode")
-
-            Text(cropMode.instruction)
-                .font(.subheadline)
-                .foregroundStyle(ScanTheme.secondaryInk)
-                .multilineTextAlignment(.center)
-
-            Button(action: applyCrop) {
-                Label("Apply Crop", systemImage: "crop")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(ScanPrimaryButtonStyle())
-            .disabled(isApplying)
         }
-        .frame(maxWidth: 640)
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 8)
+        .padding(.top, 12)
         .frame(maxWidth: .infinity)
-        .background(ScanTheme.surface)
     }
 
     private func applyCrop() {
@@ -277,14 +277,14 @@ private enum CropMode: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .fourCorners: "viewfinder"
-        case .uniform: "rectangle.dashed"
+        case .uniform: "crop"
         }
     }
 
     var instruction: String {
         switch self {
-        case .fourCorners: "Drag each corner to correct the document perspective"
-        case .uniform: "Resize or drag the rectangle for a standard crop"
+        case .fourCorners: "Drag each corner to straighten the page."
+        case .uniform: "Drag the edges or move the frame."
         }
     }
 }
