@@ -10,10 +10,13 @@ struct DocumentContentsView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var isScannerPresented = false
     @State private var isPhotoImporterPresented = false
     @State private var isPDFImporterPresented = false
-    @State private var isExportPresented = false
+    @State private var isPreparingShare = false
+    @State private var shareItems: ShareItems?
+    @State private var openedPageID: UUID?
     @State private var isRenamePresented = false
     @State private var isDeletePresented = false
     @State private var draftTitle = ""
@@ -22,7 +25,8 @@ struct DocumentContentsView: View {
     @State private var pendingPageDeletion: PendingPageDeletion?
 
     private var gridColumns: [GridItem] {
-        [GridItem(.adaptive(minimum: dynamicTypeSize.isAccessibilitySize ? 200 : 100, maximum: 220), spacing: 18, alignment: .bottom)]
+        let minimum: CGFloat = dynamicTypeSize.isAccessibilitySize ? 200 : (horizontalSizeClass == .regular ? 160 : 100)
+        return [GridItem(.adaptive(minimum: minimum, maximum: 240), spacing: 18, alignment: .bottom)]
     }
 
     var body: some View {
@@ -31,7 +35,7 @@ struct DocumentContentsView: View {
                 ContentUnavailableView(
                     "No Pages",
                     systemImage: "doc.viewfinder",
-                    description: Text("Add pages below, or delete this scan from the title menu.")
+                    description: Text("Tap Add Pages to scan or import pages.")
                 )
             } else {
                 pagesGrid
@@ -39,12 +43,14 @@ struct DocumentContentsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ScanTheme.background)
-        .tint(ScanTheme.accent)
         .navigationTitle(session.title)
+        .navigationSubtitleIfAvailable(subtitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarTitleMenu { documentMenuItems }
         .toolbar { toolbarContent }
-        .safeAreaInset(edge: .bottom) { actionBar }
+        .navigationDestination(item: $openedPageID) { pageID in
+            PageDetailView(session: session, pageID: pageID)
+        }
         .fullScreenCover(isPresented: $isScannerPresented) {
             DocumentScannerView(
                 onComplete: { images in
@@ -59,14 +65,10 @@ struct DocumentContentsView: View {
             )
             .ignoresSafeArea()
         }
-        .sheet(isPresented: $isExportPresented) {
-            ExportOptionsView(
-                session: session,
-                format: settings.exportFormat,
-                compression: settings.compression
-            )
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
+        .sheet(item: $shareItems) { items in
+            ShareSheet(activityItems: items.urls)
+                .presentationDetents([.medium, .large])
+                .ignoresSafeArea()
         }
         .photoLibraryImporter(
             isPresented: $isPhotoImporterPresented,
@@ -92,7 +94,7 @@ struct DocumentContentsView: View {
             Button("Cancel", role: .cancel) {}
             Button("Save") { session.rename(to: draftTitle) }
         }
-        .alert("Unable to Add Pages", isPresented: Binding(
+        .alert("Something Went Wrong", isPresented: Binding(
             get: { alertMessage != nil },
             set: { if !$0 { alertMessage = nil } }
         )) {
@@ -135,7 +137,7 @@ struct DocumentContentsView: View {
 
     private var pagesGrid: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
+            VStack(alignment: .leading, spacing: 20) {
                 header
 
                 LazyVGrid(columns: gridColumns, spacing: 26) {
@@ -160,6 +162,16 @@ struct DocumentContentsView: View {
                                 )
                             } label: {
                                 Label("Delete Page", systemImage: "trash")
+                            }
+                        }
+                        .accessibilityAction(named: "Move Earlier") {
+                            if index > 0 {
+                                _ = session.movePage(page.id, toPositionOf: session.pages[index - 1].id)
+                            }
+                        }
+                        .accessibilityAction(named: "Move Later") {
+                            if index < session.pages.count - 1 {
+                                _ = session.movePage(page.id, toPositionOf: session.pages[index + 1].id)
                             }
                         }
                         .onDrag {
@@ -190,61 +202,77 @@ struct DocumentContentsView: View {
         }
     }
 
-    /// One large, light numeral, the way Compass and Level lead with a reading.
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("\(session.pages.count)")
-                    .font(.system(size: 64, weight: .thin))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                    .foregroundStyle(ScanTheme.ink)
-                Text(session.pages.count == 1 ? "page" : "pages")
-                    .font(.title3.weight(.light))
-                    .foregroundStyle(ScanTheme.secondaryInk)
-            }
-
-            HStack(spacing: 6) {
-                Text("Edited \(session.modifiedAt.formatted(.relative(presentation: .named)))")
-                    .foregroundStyle(ScanTheme.secondaryInk)
-                if session.pagesNeedingReview > 0 {
-                    Text("·").foregroundStyle(ScanTheme.tertiaryInk)
-                    Label("\(session.pagesNeedingReview) to review", systemImage: "exclamationmark.circle.fill")
-                        .labelStyle(CompactLabelStyle())
-                        .foregroundStyle(ScanTheme.warning)
-                } else if session.pages.contains(where: { $0.quality == .analyzing }) {
-                    Text("·").foregroundStyle(ScanTheme.tertiaryInk)
-                    Text("Reading text…")
-                        .foregroundStyle(ScanTheme.secondaryInk)
-                }
-            }
-            .font(.subheadline)
-        }
-        .animation(.snappy, value: session.pages.count)
-        .accessibilityElement(children: .combine)
+    private var subtitle: String {
+        "\(session.pages.count.pageCountText) · Edited \(session.modifiedAt.formatted(.relative(presentation: .named)))"
     }
 
-    private var actionBar: some View {
-        FloatingActionBar {
-            AddPagesMenu(
-                onScan: beginScanning,
-                onImportPhotos: { isPhotoImporterPresented = true },
-                onImportPDF: { isPDFImporterPresented = true },
-                onPaste: pastePages
-            ) {
-                FloatingActionLabel(title: "Add Pages", systemImage: "plus")
-            }
+    /// The subtitle on iOS 17 and 18, and the pages that need a second look on every version.
+    @ViewBuilder
+    private var header: some View {
+        let showsSubtitle: Bool = {
+            if #available(iOS 26.0, *) { return false }
+            return true
+        }()
+        let flaggedPage = session.pages.first(where: { $0.quality.needsReview })
 
-            Button {
-                isExportPresented = true
-            } label: {
-                FloatingActionLabel(title: "Export", systemImage: "square.and.arrow.up", isProminent: !session.isEmpty)
+        if showsSubtitle || flaggedPage != nil {
+            VStack(alignment: .leading, spacing: 10) {
+                if showsSubtitle {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(ScanTheme.secondaryInk)
+                }
+
+                if let flaggedPage {
+                    Button {
+                        openedPageID = flaggedPage.id
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(ScanTheme.warning)
+                            Text("\(session.pagesNeedingReview.pageCountText) to check")
+                                .foregroundStyle(ScanTheme.ink)
+                            Spacer(minLength: 8)
+                            Text("Show")
+                                .foregroundStyle(ScanTheme.accent)
+                        }
+                        .font(.body)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .frame(minHeight: 50)
+                        .scanCard(cornerRadius: 14)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens the first page to check")
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(session.isEmpty)
         }
-        .fixedSize(horizontal: true, vertical: false)
-        .frame(maxWidth: .infinity)
+    }
+
+    private var addPagesMenu: some View {
+        AddPagesMenu(
+            onScan: beginScanning,
+            onImportPhotos: { isPhotoImporterPresented = true },
+            onImportPDF: { isPDFImporterPresented = true },
+            onPaste: pastePages
+        ) {
+            ActionLabel("Add Pages", systemImage: "plus")
+        }
+    }
+
+    private var shareButton: some View {
+        Button {
+            share(as: settings.exportFormat)
+        } label: {
+            if isPreparingShare {
+                ProgressView()
+                    .accessibilityLabel("Preparing to share")
+            } else {
+                ActionLabel("Share", systemImage: "square.and.arrow.up")
+            }
+        }
+        .prominentActionStyle()
+        .disabled(session.isEmpty || isPreparingShare)
     }
 
     @ViewBuilder
@@ -257,11 +285,11 @@ struct DocumentContentsView: View {
         }
 
         Button {
-            isExportPresented = true
+            share(as: otherFormat)
         } label: {
-            Label("Export", systemImage: "square.and.arrow.up")
+            Label(otherFormat == .pdf ? "Share as PDF" : "Share as Images", systemImage: otherFormat.systemImage)
         }
-        .disabled(session.isEmpty)
+        .disabled(session.isEmpty || isPreparingShare)
 
         Divider()
 
@@ -274,13 +302,32 @@ struct DocumentContentsView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                documentMenuItems
-            } label: {
-                Image(systemName: "ellipsis")
+        ToolbarItemGroup(placement: .bottomBar) {
+            addPagesMenu
+            Spacer()
+            shareButton
+        }
+    }
+
+    private var otherFormat: ExportFormat {
+        settings.exportFormat == .pdf ? .images : .pdf
+    }
+
+    private func share(as format: ExportFormat) {
+        isPreparingShare = true
+        Task {
+            do {
+                let urls = try await ExportService.export(
+                    pages: session.pages,
+                    title: session.title,
+                    format: format,
+                    compression: settings.compression
+                )
+                shareItems = ShareItems(urls: urls)
+            } catch {
+                alertMessage = error.localizedDescription
             }
-            .accessibilityLabel("Scan options")
+            isPreparingShare = false
         }
     }
 
@@ -319,31 +366,25 @@ private struct PageTile: View {
                     ProgressView()
                         .controlSize(.mini)
                 } else if page.quality.needsReview {
-                    Image(systemName: "exclamationmark.circle.fill")
+                    Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(ScanTheme.warning)
                 }
                 Text("\(pageNumber)")
                     .monospacedDigit()
                     .foregroundStyle(ScanTheme.secondaryInk)
             }
-            .font(.footnote.weight(.medium))
-            .frame(height: 18)
+            .font(.subheadline.weight(.medium))
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Page \(pageNumber)")
-        .accessibilityValue(page.quality.title)
-        .accessibilityHint("Opens the page")
+        .accessibilityValue(page.quality.needsReview ? "Needs a check" : "")
     }
 }
 
-struct CompactLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 4) {
-            configuration.icon
-            configuration.title
-        }
-    }
+private struct ShareItems: Identifiable {
+    let id = UUID()
+    let urls: [URL]
 }
 
 private struct PendingPageDeletion {

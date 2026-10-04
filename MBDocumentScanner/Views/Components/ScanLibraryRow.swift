@@ -16,12 +16,20 @@ struct ScanLibraryRow: View {
                 Text("\(session.pages.count.pageCountText) · \(dateText)")
                     .font(.subheadline)
                     .foregroundStyle(ScanTheme.secondaryInk)
-                    .lineLimit(1)
+
+                if session.pagesNeedingReview > 0 {
+                    Label("\(session.pagesNeedingReview.pageCountText) to check", systemImage: "exclamationmark.triangle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(ScanTheme.warningText)
+                }
             }
 
             Spacer(minLength: 8)
 
-            status
+            if session.pages.contains(where: { $0.quality == .analyzing }) {
+                ProgressView()
+                    .accessibilityLabel("Checking pages")
+            }
         }
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
@@ -35,24 +43,6 @@ struct ScanLibraryRow: View {
         return date.formatted(.dateTime.month(.abbreviated).day())
     }
 
-    @ViewBuilder
-    private var status: some View {
-        if session.pagesNeedingReview > 0 {
-            HStack(spacing: 4) {
-                Image(systemName: "exclamationmark.circle.fill")
-                Text("\(session.pagesNeedingReview)")
-                    .monospacedDigit()
-            }
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(ScanTheme.warning)
-            .accessibilityLabel("\(session.pagesNeedingReview.pageCountText) to review")
-        } else if session.pages.contains(where: { $0.quality == .analyzing }) {
-            ProgressView()
-                .controlSize(.small)
-                .accessibilityLabel("Checking pages")
-        }
-    }
-
     private var thumbnail: some View {
         ZStack {
             if let image = session.thumbnail {
@@ -64,5 +54,6 @@ struct ScanLibraryRow: View {
             }
         }
         .frame(width: 44, height: 56)
+        .accessibilityHidden(true)
     }
 }

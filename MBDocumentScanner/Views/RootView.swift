@@ -26,7 +26,12 @@ struct RootView: View {
         NavigationStack(path: $path) {
             Group {
                 if library.documents.isEmpty {
-                    EmptyScanView()
+                    EmptyScanView(
+                        onScan: beginScanning,
+                        onImportPhotos: { isPhotoImporterPresented = true },
+                        onImportPDF: { isPDFImporterPresented = true },
+                        onPaste: pasteDocument
+                    )
                 } else {
                     scansList
                 }
@@ -38,9 +43,14 @@ struct RootView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     optionsMenu
                 }
-            }
-            .safeAreaInset(edge: .bottom) {
-                actionBar
+
+                if !library.documents.isEmpty {
+                    ToolbarItemGroup(placement: .bottomBar) {
+                        importMenu
+                        Spacer()
+                        scanButton
+                    }
+                }
             }
             .navigationDestination(for: LibraryRoute.self) { route in
                 switch route {
@@ -129,7 +139,7 @@ struct RootView: View {
                         NavigationLink(value: LibraryRoute.document(document.id)) {
                             ScanLibraryRow(session: document)
                         }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 pendingDeletion = document
                             } label: {
@@ -156,7 +166,7 @@ struct RootView: View {
         .searchable(
             text: $searchText,
             placement: .navigationBarDrawer(displayMode: .automatic),
-            prompt: "Titles and text"
+            prompt: "Search"
         )
         .overlay {
             if filteredDocuments.isEmpty && !searchText.isEmpty {
@@ -202,25 +212,24 @@ struct RootView: View {
 
     // MARK: - Actions
 
-    private var actionBar: some View {
-        FloatingActionBar {
-            Button(action: beginScanning) {
-                FloatingActionLabel(title: "Scan", systemImage: "doc.viewfinder", isProminent: true)
-            }
-            .buttonStyle(.plain)
-
-            AddPagesMenu(
-                includesScan: false,
-                onScan: beginScanning,
-                onImportPhotos: { isPhotoImporterPresented = true },
-                onImportPDF: { isPDFImporterPresented = true },
-                onPaste: pasteDocument
-            ) {
-                FloatingActionLabel(title: "Import", systemImage: "square.and.arrow.down")
-            }
+    private var importMenu: some View {
+        AddPagesMenu(
+            includesScan: false,
+            onScan: beginScanning,
+            onImportPhotos: { isPhotoImporterPresented = true },
+            onImportPDF: { isPDFImporterPresented = true },
+            onPaste: pasteDocument
+        ) {
+            ActionLabel("Import", systemImage: "square.and.arrow.down")
         }
-        .fixedSize(horizontal: true, vertical: false)
-        .frame(maxWidth: .infinity)
+    }
+
+    private var scanButton: some View {
+        Button(action: beginScanning) {
+            ActionLabel("Scan", systemImage: "doc.viewfinder")
+        }
+        .prominentActionStyle()
+        .accessibilityLabel("Scan Document")
     }
 
     private var errorBinding: Binding<Bool> {

@@ -74,14 +74,13 @@ struct PageEditorView: View {
         NavigationStack {
             workspace
             .background(ScanTheme.background)
-            .navigationTitle("Page \(pageNumber)")
+            .navigationTitle("Markup")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { editorToolbar }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 editingPalette
             }
         }
-        .tint(ScanTheme.accent)
         .interactiveDismissDisabled(hasChanges || isRendering)
         .sheet(item: $textEditorDraft) { draft in
             TextEditSheet(
@@ -169,11 +168,6 @@ struct PageEditorView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                interactionStatus
-                    .padding(.horizontal, 20)
-                    .padding(.top, 14)
-                    .padding(.bottom, 8)
-
                 GeometryReader { geometry in
                     let pageSize = aspectFitSize(
                         imageSize: image.size,
@@ -189,19 +183,7 @@ struct PageEditorView: View {
                 }
                 .clipped()
 
-                HStack {
-                    Text("Pinch to zoom · Two fingers to pan")
-                        .font(.caption)
-                    Spacer(minLength: 8)
-                    Button("Fit Page") { zoomResetID += 1 }
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(ScanTheme.accent)
-                        .frame(minHeight: 36)
-                        .accessibilityHint("Reset the zoom to show the entire page")
-                }
-                .foregroundStyle(ScanTheme.secondaryInk)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
+                .padding(.vertical, 12)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -325,60 +307,37 @@ struct PageEditorView: View {
         }
     }
 
-    private var interactionStatus: some View {
-        Label(statusText, systemImage: statusIcon)
-            .font(.footnote)
-            .foregroundStyle(ScanTheme.secondaryInk)
-            .multilineTextAlignment(.center)
-            .contentTransition(.opacity)
-            .accessibilityLabel(statusText)
-    }
-
-    private var statusText: String {
-        switch selectedTool {
-        case .select:
-            selection == nil ? "Tap an item to move or resize" : "Drag to move · Use the corner handle to resize"
-        case .text:
-            "Tap the page to add text"
-        case .redact:
-            "Drag over content to remove permanently"
-        case .draw:
-            drawingInputMode == .pencil
-                ? "Apple Pencil draws · Touch moves and resizes"
-                : "One finger draws · Apple Pencil switches automatically"
-        }
-    }
-
-    private var statusIcon: String {
-        switch selectedTool {
-        case .select: "arrow.up.and.down.and.arrow.left.and.right"
-        case .text: "textformat"
-        case .redact: "lock.fill"
-        case .draw: drawingInputMode.systemImage
-        }
-    }
-
     private var editingPalette: some View {
         VStack(spacing: 12) {
             contextualControls
                 .frame(maxWidth: 720)
                 .padding(.horizontal, 20)
 
-            FloatingActionBar {
+            Picker("Tool", selection: toolBinding) {
                 ForEach(EditorTool.allCases) { tool in
-                    EditorToolButton(tool: tool, isSelected: selectedTool == tool) {
-                        withAnimation(.snappy(duration: 0.18)) {
-                            selectedTool = tool
-                            if tool == .text || tool == .redact { selection = nil }
-                        }
-                        UISelectionFeedbackGenerator().selectionChanged()
-                    }
+                    Text(tool.title).tag(tool)
                 }
             }
+            .pickerStyle(.segmented)
+            .controlSize(.large)
             .frame(maxWidth: 520)
+            .padding(.horizontal, 20)
         }
         .padding(.top, 8)
+        .padding(.bottom, 8)
         .frame(maxWidth: .infinity)
+    }
+
+    private var toolBinding: Binding<EditorTool> {
+        Binding(
+            get: { selectedTool },
+            set: { tool in
+                withAnimation(.snappy(duration: 0.18)) {
+                    selectedTool = tool
+                    if tool == .text || tool == .redact { selection = nil }
+                }
+            }
+        )
     }
 
     @ViewBuilder
@@ -388,25 +347,22 @@ struct PageEditorView: View {
             selectionControls
         case .text:
             HStack(spacing: 10) {
-                Label("Tap the page to place a text box", systemImage: "text.cursor")
+                Text("Tap the page where the text should go.")
                     .font(.subheadline)
                     .foregroundStyle(ScanTheme.secondaryInk)
                 Spacer()
-                Button("Add Center") {
+                Button("Add Text") {
                     prepareNewText(at: CGPoint(x: 0.5, y: 0.35))
                 }
-                .buttonStyle(ScanSecondaryButtonStyle())
+                .buttonStyle(.bordered)
             }
         case .redact:
             HStack(spacing: 10) {
-                Label("Permanent", systemImage: "lock.fill")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(Color.red, in: Capsule())
-                Text("Drag a box over private content. Pixels are removed when saved.")
-                    .font(.footnote)
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(.red)
+                    .accessibilityHidden(true)
+                Text("Drag over anything private. It’s removed for good when you tap Done.")
+                    .font(.subheadline)
                     .foregroundStyle(ScanTheme.secondaryInk)
                 Spacer(minLength: 0)
             }
@@ -445,7 +401,7 @@ struct PageEditorView: View {
             }
         } else {
             HStack {
-                Label("Select text or a pending redaction to adjust it", systemImage: "hand.tap")
+                Text("Tap text or a black box to change it.")
                     .font(.subheadline)
                     .foregroundStyle(ScanTheme.secondaryInk)
                 Spacer()
@@ -465,9 +421,6 @@ struct PageEditorView: View {
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 330)
                     .accessibilityHint("Choose whether a finger or Apple Pencil creates ink")
-                } else {
-                    Label("Finger drawing", systemImage: "hand.draw")
-                        .font(.subheadline.weight(.semibold))
                 }
 
                 Spacer()
@@ -504,8 +457,8 @@ struct PageEditorView: View {
                 }
             } else {
                 HStack {
-                    Label("Erase whole strokes by drawing across them", systemImage: "eraser")
-                        .font(.footnote)
+                    Text("Draw across a line to erase it.")
+                        .font(.subheadline)
                         .foregroundStyle(ScanTheme.secondaryInk)
                     Spacer()
                 }
@@ -955,21 +908,6 @@ private struct TextEditorDraft: Identifiable {
     var hasBackground: Bool
 }
 
-private struct EditorToolButton: View {
-    let tool: EditorTool
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            FloatingActionLabel(title: tool.title, systemImage: tool.systemImage, isProminent: isSelected)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
 private struct TextEditSheet: View {
     let onCancel: () -> Void
     let onSave: (TextEditorDraft) -> Void
@@ -1050,7 +988,6 @@ private struct TextEditSheet: View {
                 }
             }
         }
-        .tint(ScanTheme.accent)
         .onAppear { isTextFocused = true }
     }
 }

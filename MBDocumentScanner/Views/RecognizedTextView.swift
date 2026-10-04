@@ -20,13 +20,13 @@ struct RecognizedTextView: View {
                 ContentUnavailableView(
                     "No Text Found",
                     systemImage: "text.magnifyingglass",
-                    description: Text("Try rescanning with brighter, even lighting and keep the page steady.")
+                    description: Text("Try retaking the page in brighter light.")
                 )
                 .padding(.top, 80)
             } else {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("\(wordCount) \(wordCount == 1 ? "word" : "words") · Recognized on device")
-                        .font(.footnote)
+                    Text("\(wordCount) \(wordCount == 1 ? "word" : "words")")
+                        .font(.subheadline)
                         .foregroundStyle(ScanTheme.secondaryInk)
                         .padding(.horizontal, 20)
 
@@ -46,8 +46,7 @@ struct RecognizedTextView: View {
             }
         }
         .background(ScanTheme.background)
-        .tint(ScanTheme.accent)
-        .navigationTitle("Page \(session.pageNumber(for: pageID) ?? 1) Text")
+        .navigationTitle("Text")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -57,19 +56,23 @@ struct RecognizedTextView: View {
                 .disabled(text.isEmpty)
                 .accessibilityLabel("Share text")
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .bottomBar) {
                 Button {
                     UIPasteboard.general.string = text
                     didCopy = true
                 } label: {
-                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
-                        .contentTransition(.symbolEffect(.replace))
+                    ActionLabel(didCopy ? "Copied" : "Copy All Text", systemImage: didCopy ? "checkmark" : "doc.on.doc")
                 }
-                .accessibilityLabel(didCopy ? "Copied" : "Copy text")
+                .prominentActionStyle()
                 .disabled(text.isEmpty)
             }
         }
         .sensoryFeedback(.success, trigger: didCopy)
         .onChange(of: text) { _, _ in didCopy = false }
+        .task(id: didCopy) {
+            guard didCopy else { return }
+            try? await Task.sleep(for: .seconds(2))
+            didCopy = false
+        }
     }
 }

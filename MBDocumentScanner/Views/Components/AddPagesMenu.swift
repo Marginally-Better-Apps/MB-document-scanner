@@ -1,7 +1,7 @@
-import Combine
 import SwiftUI
 import UIKit
 
+/// Every way to bring pages in, in one menu. Paste only appears when there is something to paste.
 struct AddPagesMenu<MenuLabel: View>: View {
     var includesScan = true
     let onScan: () -> Void
@@ -11,64 +11,47 @@ struct AddPagesMenu<MenuLabel: View>: View {
     @ViewBuilder let label: () -> MenuLabel
 
     @Environment(\.scenePhase) private var scenePhase
-    @State private var pasteboardLabel: String?
-    @State private var lastPasteboardChangeCount = -1
-
-    private let refreshTimer = Timer.publish(every: 0.6, on: .main, in: .common).autoconnect()
+    @State private var canPaste = false
 
     var body: some View {
         Menu {
             if includesScan {
-                Section {
-                    Button(action: onScan) {
-                        Label("Scan Document", systemImage: "doc.viewfinder")
-                    }
+                Button(action: onScan) {
+                    Label("Scan Documents", systemImage: "doc.viewfinder")
                 }
             }
 
-            Section {
-                Button(action: onImportPhotos) {
-                    Label("Photos", systemImage: "photo.on.rectangle")
-                }
+            Button(action: onImportPhotos) {
+                Label("Choose Photos", systemImage: "photo.on.rectangle")
+            }
 
-                Button(action: onImportPDF) {
-                    Label("PDF from Files", systemImage: "folder")
-                }
+            Button(action: onImportPDF) {
+                Label("Choose PDF", systemImage: "folder")
+            }
 
+            if canPaste {
                 Button(action: onPaste) {
-                    Label(pasteButtonTitle, systemImage: "doc.on.clipboard")
+                    Label("Paste", systemImage: "doc.on.clipboard")
                 }
-                .disabled(pasteboardLabel == nil)
             }
         } label: {
             label()
         }
-        .onAppear { refreshPasteboard(force: true) }
+        .onAppear(perform: refreshPasteboard)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                refreshPasteboard(force: true)
+                refreshPasteboard()
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIPasteboard.changedNotification)) { _ in
-            refreshPasteboard(force: true)
+            refreshPasteboard()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIPasteboard.removedNotification)) { _ in
-            refreshPasteboard(force: true)
-        }
-        .onReceive(refreshTimer) { _ in
-            guard scenePhase == .active else { return }
             refreshPasteboard()
         }
     }
 
-    private var pasteButtonTitle: String {
-        pasteboardLabel.map { "Paste (\($0))" } ?? "Paste Image"
-    }
-
-    private func refreshPasteboard(force: Bool = false) {
-        let pasteboard = UIPasteboard.general
-        guard force || pasteboard.changeCount != lastPasteboardChangeCount else { return }
-        lastPasteboardChangeCount = pasteboard.changeCount
-        pasteboardLabel = PasteboardImageImporter.supportedContentLabel(in: pasteboard)
+    private func refreshPasteboard() {
+        canPaste = PasteboardImageImporter.supportedContentLabel(in: .general) != nil
     }
 }

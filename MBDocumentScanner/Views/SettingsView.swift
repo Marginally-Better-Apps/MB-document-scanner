@@ -9,55 +9,41 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                appHeader
-            }
-
-            Section {
-                Picker(selection: $settings.appearance) {
+                Picker("Appearance", selection: $settings.appearance) {
                     ForEach(AppAppearance.allCases) { appearance in
                         Text(appearance.title).tag(appearance)
                     }
-                } label: {
-                    SettingsLabel("Appearance", systemImage: "circle.lefthalf.filled", color: .indigo)
                 }
 
-                Picker(selection: $settings.librarySortOrder) {
+                Picker("Sort Scans By", selection: $settings.librarySortOrder) {
                     ForEach(LibrarySortOrder.allCases) { order in
                         Text(order.title).tag(order)
                     }
-                } label: {
-                    SettingsLabel("Sort Scans", systemImage: "arrow.up.arrow.down", color: .blue)
                 }
             }
 
             Section {
-                Picker(selection: $settings.exportFormat) {
+                Picker("Share As", selection: $settings.exportFormat) {
                     ForEach(ExportFormat.allCases) { format in
                         Text(format.title).tag(format)
                     }
-                } label: {
-                    SettingsLabel("File Format", systemImage: "doc.fill", color: .red)
                 }
 
-                Picker(selection: $settings.compression) {
+                Picker("File Size", selection: $settings.compression) {
                     ForEach(CompressionPreset.allCases) { preset in
                         Text(preset.title).tag(preset)
                     }
-                } label: {
-                    SettingsLabel("Quality", systemImage: "slider.horizontal.3", color: .orange)
                 }
             } header: {
-                Text("Export")
+                Text("Sharing")
+            } footer: {
+                Text("Used when you tap Share on a scan.")
             }
 
             Section {
-                Toggle(isOn: $settings.usesLanguageCorrection) {
-                    SettingsLabel("Language Correction", systemImage: "character.cursor.ibeam", color: .green)
-                }
-            } header: {
-                Text("Text Recognition")
+                Toggle("Auto-Correct Scanned Text", isOn: $settings.usesLanguageCorrection)
             } footer: {
-                Text("Uses language context to improve recognized text. Turn off for codes or unusual spellings. Applies to pages added or edited from now on.")
+                Text("Fixes small reading mistakes in scanned words. Turn this off for codes and serial numbers.")
             }
 
             Section {
@@ -66,90 +52,53 @@ struct SettingsView: View {
                         openURL(url)
                     }
                 } label: {
-                    externalLabel("Camera & Photos Access", systemImage: "hand.raised.fill", color: .blue)
+                    externalLabel("Camera & Photos Access")
                 }
             } header: {
                 Text("Privacy")
             } footer: {
-                Text("Scans and text recognition stay on this device. No account, ads, or analytics. You choose what to share when you export.")
+                Text("Your scans stay on this device. Nothing is uploaded unless you share it.")
             }
 
             Section {
                 Link(destination: AppInformation.githubURL) {
-                    externalLabel("Source Code", systemImage: "chevron.left.forwardslash.chevron.right", color: .gray)
+                    externalLabel("Source Code")
                 }
 
                 Link(destination: AppInformation.issuesURL) {
-                    externalLabel("Report an Issue", systemImage: "exclamationmark.bubble.fill", color: .pink)
+                    externalLabel("Report a Problem")
                 }
 
-                NavigationLink {
+                NavigationLink("License") {
                     LicenseView()
-                } label: {
-                    SettingsLabel("License", systemImage: "doc.text.fill", color: .gray)
                 }
             } header: {
                 Text("About")
+            } footer: {
+                Text("MB Document Scanner, \(AppInformation.version)")
             }
 
             Section {
                 Button("Reset Settings", role: .destructive) {
                     isResetPresented = true
                 }
-                .frame(maxWidth: .infinity)
-            } footer: {
-                Text("Free and open source. Made for iPhone and iPad.")
-                    .frame(maxWidth: .infinity)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 12)
             }
         }
         .pickerStyle(.navigationLink)
-        .scrollContentBackground(.hidden)
-        .background(ScanTheme.background)
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)
         .alert("Reset Settings?", isPresented: $isResetPresented) {
             Button("Reset", role: .destructive) { settings.reset() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Appearance, sorting, export defaults, and language correction return to their original values. Your scans are not changed.")
+            Text("Your scans won’t be changed.")
         }
     }
 
-    /// Like the account card at the top of Settings.
-    private var appHeader: some View {
-        HStack(spacing: 16) {
-            Image(systemName: "doc.viewfinder")
-                .font(.system(size: 30, weight: .regular))
-                .foregroundStyle(.white)
-                .frame(width: 62, height: 62)
-                .background(
-                    LinearGradient(
-                        colors: [Color(red: 0.32, green: 0.78, blue: 0.68), Color(red: 0.0, green: 0.42, blue: 0.38)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                )
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("MB Document Scanner")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(ScanTheme.ink)
-                Text(AppInformation.version)
-                    .font(.subheadline)
-                    .foregroundStyle(ScanTheme.secondaryInk)
-            }
-        }
-        .padding(.vertical, 6)
-        .accessibilityElement(children: .combine)
-    }
-
-    private func externalLabel(_ title: String, systemImage: String, color: Color) -> some View {
+    private func externalLabel(_ title: String) -> some View {
         HStack {
-            SettingsLabel(title, systemImage: systemImage, color: color)
+            Text(title)
+                .foregroundStyle(ScanTheme.ink)
             Spacer(minLength: 8)
             Image(systemName: "arrow.up.right")
                 .font(.footnote.weight(.semibold))

@@ -39,16 +39,9 @@ struct PDFPageSelectionView: View {
                             .font(.title2.weight(.semibold))
                             .foregroundStyle(ScanTheme.ink)
                             .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
-                        Text("\(source.pages.count.pageCountText) · Tap to choose which to import")
+                        Text("Tap a page to leave it out.")
                             .font(.subheadline)
                             .foregroundStyle(ScanTheme.secondaryInk)
-
-                        if dynamicTypeSize.isAccessibilitySize {
-                            Button(selectionButtonTitle, action: toggleAllPages)
-                                .buttonStyle(ScanSecondaryButtonStyle())
-                                .disabled(isImporting)
-                                .padding(.top, 8)
-                        }
                     }
 
                     LazyVGrid(columns: columns, alignment: .center, spacing: 22) {
@@ -69,18 +62,29 @@ struct PDFPageSelectionView: View {
                         .disabled(isImporting)
                 }
 
-                if !dynamicTypeSize.isAccessibilitySize {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(selectionButtonTitle, action: toggleAllPages)
-                            .disabled(isImporting)
+                ToolbarItem(placement: .confirmationAction) {
+                    if isImporting {
+                        ProgressView()
+                    } else {
+                        Button("Import", action: importSelectedPages)
+                            .fontWeight(.semibold)
+                            .disabled(selectedIndexes.isEmpty)
                     }
                 }
-            }
-            .safeAreaInset(edge: .bottom) {
-                importBar
+
+                ToolbarItem(placement: .bottomBar) {
+                    Button(selectionButtonTitle, action: toggleAllPages)
+                        .disabled(isImporting)
+                }
+
+                ToolbarItem(placement: .status) {
+                    Text(selectionSummary)
+                        .font(.subheadline)
+                        .foregroundStyle(ScanTheme.secondaryInk)
+                        .contentTransition(.numericText())
+                }
             }
         }
-        .tint(ScanTheme.accent)
         .interactiveDismissDisabled(isImporting)
         .alert("Unable to Import PDF", isPresented: Binding(
             get: { importError != nil },
@@ -134,7 +138,7 @@ struct PDFPageSelectionView: View {
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
                     .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, ScanTheme.accent)
+                    .foregroundStyle(.white, Color.accentColor)
             } else {
                 Image(systemName: "circle")
                     .foregroundStyle(ScanTheme.tertiaryInk)
@@ -143,41 +147,6 @@ struct PDFPageSelectionView: View {
         .font(.system(size: 24))
         .background(Circle().fill(.white).padding(2))
         .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
-    }
-
-    private var importBar: some View {
-        VStack(spacing: 12) {
-            Text(selectionSummary)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(ScanTheme.secondaryInk)
-                .contentTransition(.numericText())
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Button(action: importSelectedPages) {
-                HStack {
-                    if isImporting {
-                        ProgressView()
-                            .tint(ScanTheme.onAccent)
-                    } else {
-                        Image(systemName: "square.and.arrow.down")
-                    }
-                    Text(importButtonTitle)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(ScanPrimaryButtonStyle())
-            .disabled(selectedIndexes.isEmpty || isImporting)
-        }
-        .frame(maxWidth: 560)
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
-        .padding(.bottom, 8)
-        .frame(maxWidth: .infinity)
-        .background(.bar)
     }
 
     private var selectionButtonTitle: String {
@@ -190,14 +159,6 @@ struct PDFPageSelectionView: View {
             return "All \(source.pages.count) \(source.pages.count == 1 ? "page" : "pages") selected"
         }
         return "\(selectedIndexes.count) of \(source.pages.count) pages selected"
-    }
-
-    private var importButtonTitle: String {
-        if isImporting { return "Importing…" }
-        if selectedIndexes.count == source.pages.count {
-            return source.pages.count == 1 ? "Import Page" : "Import All Pages"
-        }
-        return selectedIndexes.count == 1 ? "Import 1 Page" : "Import \(selectedIndexes.count) Pages"
     }
 
     private func toggleAllPages() {
